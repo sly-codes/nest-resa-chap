@@ -42,9 +42,9 @@ export class ResourceController {
     return this.resourceService.getAllResources();
   }
 
-  // ===================================================
+  // =======================================================
   // ROUTES PROTÉGÉES (CRUD Gestion Locateur, nécessite JWT)
-  // ===================================================
+  // =======================================================
 
   @UseGuards(AtGuard)
   @ApiBearerAuth()

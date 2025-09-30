@@ -3,13 +3,18 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { ResourceService } from './resource/resource.service';
-import { ResourceController } from './resource/resource.controller';
 import { ResourceModule } from './resource/resource.module';
+import { ReservationModule } from './reservation/reservation.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ResourceModule],
-  controllers: [AppController, ResourceController],
-  providers: [AppService, ResourceService],
+  // Tous les modules fonctionnels sont importés ici.
+  // NestJS lit les Controllers de ces modules et les ajoute automatiquement.
+  imports: [PrismaModule, AuthModule, ResourceModule, ReservationModule],
+
+  // Seul l'AppController (racine de l'API) reste généralement ici
+  controllers: [AppController],
+
+  // Seul l'AppService reste ici
+  providers: [AppService],
 })
 export class AppModule {}

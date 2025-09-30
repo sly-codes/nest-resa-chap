@@ -81,7 +81,8 @@ model Reservation {
   
   // Coordonnées du Locataire (le visiteur non-authentifié)
   locataireNom        String
-  locataireContact    String      // Email ou Numéro de téléphone
+  locataireEmail      String      // Email
+  locataireContact    String      // Numéro de téléphone
 
   // Plage horaire
   dateDebut           DateTime

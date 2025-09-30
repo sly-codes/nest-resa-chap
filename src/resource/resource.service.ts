@@ -3,9 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Resource } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateResourceDto, UpdateResourceDto } from './dto';
-import { Resource } from '@prisma/client';
 
 @Injectable()
 export class ResourceService {
@@ -45,7 +45,7 @@ export class ResourceService {
         description: true,
         createdAt: true,
         // Inclure l'ownerId si le Locataire veut voir qui est le propriétaire
-        // ownerId: true,
+        ownerId: true,
       },
     });
   }
