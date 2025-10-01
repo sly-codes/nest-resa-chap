@@ -1,13 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsEmail,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
-  MinLength,
 } from 'class-validator';
 
 export class CreateReservationDto {
@@ -15,28 +13,6 @@ export class CreateReservationDto {
   @IsUUID()
   @IsNotEmpty()
   resourceId: string;
-
-  @ApiProperty({
-    description: 'Nom du locataire',
-    minLength: 2,
-    maxLength: 100,
-  })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(2)
-  @MaxLength(100)
-  locataireNom: string;
-
-  @ApiProperty({ description: 'Contact email du locataire' })
-  @IsString()
-  @IsEmail()
-  @IsNotEmpty()
-  locataireEmail: string;
-
-  @ApiProperty({ description: 'Contact numéro du locataire' })
-  @IsString()
-  @IsNotEmpty()
-  locataireContact: string;
 
   @ApiProperty({
     description: 'Date et heure de début de la réservation (format ISO 8601)',

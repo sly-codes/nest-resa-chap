@@ -1,26 +1,16 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-/**
- * DTO utilisé pour l'inscription (signup) et la connexion (signin) du Locateur.
- */
 export class AuthDto {
+  @ApiProperty({ description: "Adresse email de l'utilisateur", example: 'locateur@resachap.com' })
   @IsEmail()
   @IsNotEmpty()
-  @ApiProperty({
-    description: 'Adresse email unique du Locateur',
-    example: 'locateur@resachap.com',
-  })
   email: string;
 
+  @ApiProperty({ description: 'Mot de passe (minimum 6 caractères)' })
   @IsString()
   @IsNotEmpty()
-  @MinLength(8, {
-    message: 'Le mot de passe doit contenir au moins 8 caractères.',
-  })
-  @ApiProperty({
-    description: 'Mot de passe sécurisé (min 8 caractères)',
-    example: 'MotDePasse123!',
-  })
+  @MinLength(6)
   password: string;
 }
+

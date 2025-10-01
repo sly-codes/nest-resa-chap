@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client-js"
@@ -13,11 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-// Ce schéma représente la structure de la base de données pour l'application Resa Chap.
-
-// Nous utilisons l'UUID pour des IDs robustes et PostgreSQL.
-
 // ----------------------------------------------------
 // ENUMERATIONS
 // ----------------------------------------------------
@@ -25,29 +15,38 @@ datasource db {
 enum Status {
   // PENDING : Demande reçue, en attente de rappel par le Locateur.
   PENDING
-  // CANCELED : Annulée par le Locataire ou le Locateur (après contact externe).
+  // CANCELED : Annulée par le Locataire ou le Locateur.
   CANCELED
-  // Note: Nous n'utilisons pas 'CONFIRMED' car le paiement est externe au site.
+  // CONFIRMED: Le Locateur a contacté le Locataire et confirmé la réservation/paiement.
+  CONFIRMED // NOUVEAU STATUT pour la validation manuelle
 }
 
 
 // ----------------------------------------------------
-// 1. User (Le Locateur/Propriétaire)
+// 1. User (Locateur ET Locataire)
 // ----------------------------------------------------
 
 model User {
   id              String      @id @default(uuid())
   email           String      @unique
-  // Mot de passe haché (stocké de manière sécurisée)
+  // Informations de profil (non requises à l'inscription)
+  username        String?     // Pour l'affichage public
+  contactPhone    String?     // Numéro de contact
+  firstName       String?
+  lastName        String?
+  
+  // Authentification
   hashedPassword  String
-  // Token de Rafraîchissement haché (pour la sécurité des sessions)
   hashedRt        String?
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
   // Relation 1-N : Un utilisateur peut posséder plusieurs ressources
-  resources       Resource[]  
+  resources       Resource[]
+  
+  // Relation 1-N : Un utilisateur peut créer plusieurs réservations (Locataire)
+  reservationsMade Reservation[] @relation("LocataireReservations")
 }
 
 
@@ -63,7 +62,7 @@ model Resource {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  // Relation N-1 : Une ressource appartient à un seul Locateur
+  // Relation N-1 : Une ressource appartient à un seul Locateur (ownerId est l'ID du User)
   ownerId         String
   owner           User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
@@ -79,21 +78,20 @@ model Resource {
 model Reservation {
   id                  String      @id @default(uuid())
   
-  // Coordonnées du Locataire (le visiteur non-authentifié)
-  locataireNom        String
-  locataireEmail      String      // Email
-  locataireContact    String      // Numéro de téléphone
-
+  // Relation N-1 : Le Locataire qui a fait la demande
+  locataireId         String      // NOUVEAU : ID de l'utilisateur qui réserve
+  locataire           User        @relation("LocataireReservations", fields: [locataireId], references: [id], onDelete: Restrict)
+  
   // Plage horaire
   dateDebut           DateTime
   dateFin             DateTime
   
-  status              Status      @default(PENDING)
+  status              Status      @default(PENDING) // Le nouveau statut 
 
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  // Relation N-1 : Une réservation est liée à une ressource
+  // Relation N-1 : La ressource liée
   resourceId          String
   resource            Resource    @relation(fields: [resourceId], references: [id], onDelete: Restrict)
   

@@ -96,3 +96,110 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+
+
+
+
+
+
+import { MailerModule } from '@nestjs-modules/mailer';
+import { Global, Module } from '@nestjs/common';
+import { MailService } from './mail.service';
+
+// Le module est Global pour être injecté partout sans devoir être importé à chaque fois
+@Global() 
+@Module({
+  imports: [
+    MailerModule.forRoot({
+      // ⚠️ CONFIGURATION CLÉ : À ENREGISTRER DANS LES VARIABLES D'ENVIRONNEMENT (.env)
+      transport: {
+        host: 'smtp.ethereal.email', // Exemple pour les tests locaux (voir Nodemailer pour config)
+        port: 587,
+        secure: false, // true pour le port 465 (SSL/TLS)
+        auth: {
+          user: 'votre_user@example.com', // Remplacez par votre user/pass ou variable d'env
+          pass: 'votre_motdepasse',
+        },
+      },
+      defaults: {
+        from: '"Resa Chap" <noreply@resachap.com>',
+      },
+      // Nous utiliserons le template Pug ou Handlebars si besoin, mais le service envoie du texte simple pour l'instant.
+    }),
+  ],
+  providers: [MailService],
+  exports: [MailService],
+})
+export class MailModule {}
+```eof
+
+### C. Service de Mail
+
+```typescript:Service Mail:src/mail/mail.service.ts
+import { MailerService } from '@nestjs-modules/mailer';
+import { Injectable } from '@nestjs/common';
+import { Reservation, Resource, User } from '@prisma/client';
+
+@Injectable()
+export class MailService {
+  constructor(private mailerService: MailerService) {}
+
+  /**
+   * Envoie une notification au Locateur lorsqu'une nouvelle demande arrive.
+   * @param locateur Le propriétaire de la ressource.
+   * @param locataire Le demandeur de la réservation.
+   * @param reservation L'objet de la réservation.
+   * @param resource L'objet de la ressource.
+   */
+  async sendReservationNotification(
+    locateur: User,
+    locataire: User,
+    reservation: Reservation,
+    resource: Resource,
+  ) {
+    // URL du dashboard du Locateur (à définir dans le frontend)
+    const dashboardUrl = 'https://votresite.com/dashboard/reservations'; 
+
+    const mailOptions = {
+      to: locateur.email, // Email du Locateur
+      subject: `Nouvelle demande de réservation pour ${resource.name}`,
+      html: `
+        <h1>Demande de Réservation Reçue !</h1>
+        <p>Bonjour ${locateur.firstName || locateur.email},</p>
+        <p>Vous avez reçu une nouvelle demande de réservation pour votre ressource : <b>${resource.name}</b>.</p>
+        
+        <h2>Détails de la demande :</h2>
+        <ul>
+          <li>**Ressource :** ${resource.name} (${resource.type})</li>
+          <li>**Du :** ${reservation.dateDebut.toLocaleString()}</li>
+          <li>**Au :** ${reservation.dateFin.toLocaleString()}</li>
+          <li>**Demandeur :** ${locataire.email} (${locataire.firstName || 'Non renseigné'})</li>
+          <li>**Notes :** ${reservation.notes || 'Aucune'}</li>
+        </ul>
+        
+        <p>Veuillez vous connecter à votre tableau de bord pour accepter ou annuler la demande :</p>
+        <a href="${dashboardUrl}">Gérer les Réservations</a>
+        
+        <p>Cordialement, <br/>L'équipe Resa Chap</p>
+      `,
+    };
+
+    // ⚠️ Décommenter pour l'envoi réel
+    /* await this.mailerService.sendMail(mailOptions);
+    */
+    console.log(`[MAIL MOCK] Notification envoyée à ${locateur.email}`);
+  }
+}
+```eof
+
+### Prochaine Étape : Intégration dans le Module `Reservation`
+
+Nous avons maintenant un modèle `User` complet, un nouveau statut `CONFIRMED`, et un service d'envoi d'emails.
+
+La prochaine étape sera d'intégrer ce `MailService` dans le **`ReservationService`** et de mettre à jour la logique de création (`createReservation`) pour :
+1.  Vérifier la disponibilité.
+2.  Créer la réservation.
+3.  **Envoyer la notification par email au Locateur.**
+
+Êtes-vous prêt pour cette mise à jour de la logique de réservation ?
