@@ -1,101 +1,115 @@
 import {
-  Body,
   Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  ParseUUIDPipe,
-  Patch,
   Post,
+  Body,
   UseGuards,
+  Get,
+  Patch,
+  Param,
+  Delete,
+  HttpStatus,
+  HttpCode,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
-import { CreateReservationDto, UpdateStatusDto } from './dto';
+import { CreateReservationDto } from './dto/create-reservation.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { AtGuard } from 'src/common/guards';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import {
-  ApiTags,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
+  ApiTags,
 } from '@nestjs/swagger';
-import { AtGuard } from 'src/common/guards';
-import { CurrentUser } from 'src/common/decorators';
 
-@ApiTags('Réservations (Public & Gestion Locateur)')
+@ApiTags('Reservations (Locataire & Locateur)')
 @Controller('reservations')
+@UseGuards(AtGuard) // Protection globale du module
+@ApiBearerAuth()
 export class ReservationController {
-  constructor(private reservationService: ReservationService) {}
+  constructor(private readonly reservationService: ReservationService) {}
 
-  // ===================================================
-  // ROUTE PUBLIQUE (Création de demande par le Locataire)
-  // ===================================================
+  // ----------------------------------------------------
+  // CRUD LOCATAIRE (Réservations faites par l'utilisateur connecté)
+  // ----------------------------------------------------
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'PUBLIC : Créer une demande de réservation',
-    description:
-      "Vérifie d'abord la disponibilité et crée la demande avec le statut PENDING.",
+  @ApiOperation({ summary: 'Créer une nouvelle demande de réservation' })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Réservation créée (PENDING) et Locateur notifié.',
   })
   @ApiResponse({
-    status: 201,
-    description: 'Demande de réservation créée avec succès.',
-  })
-  @ApiResponse({
-    status: 400,
+    status: HttpStatus.BAD_REQUEST,
     description: 'Conflit horaire ou dates invalides.',
   })
-  createReservation(@Body() dto: CreateReservationDto) {
-    // Cette route est publique et appelle la logique de conflit du service
-    return this.reservationService.createReservation(dto);
-  }
-
-  // ===================================================
-  // ROUTES PROTÉGÉES (Gestion par le Locateur)
-  // ===================================================
-
-  @UseGuards(AtGuard) // Protection par Access Token
-  @ApiBearerAuth()
-  @Get('my')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary:
-      'PROTÉGÉ : Lister toutes les demandes de réservation pour MES ressources',
-  })
-  @ApiResponse({
-    status: 200,
-    description:
-      'Retourne toutes les réservations liées aux ressources du Locateur.',
-  })
-  getReservationsForOwner(@CurrentUser('id') ownerId: string) {
-    // Liste les réservations des ressources qui appartiennent à l'utilisateur connecté
-    return this.reservationService.getReservationsForOwner(ownerId);
-  }
-
-  @UseGuards(AtGuard) // Protection par Access Token
-  @ApiBearerAuth()
-  @Patch(':id/status')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary:
-      "PROTÉGÉ : Mettre à jour le statut d'une réservation (ex: annuler)",
-  })
-  @ApiResponse({ status: 200, description: 'Statut mis à jour.' })
-  @ApiResponse({
-    status: 403,
-    description:
-      "Tentative de modification d'une réservation qui ne vous appartient pas.",
-  })
-  updateStatus(
-    @CurrentUser('id') ownerId: string,
-    @Param('id', ParseUUIDPipe) reservationId: string, // ID de la réservation à modifier
-    @Body() dto: UpdateStatusDto,
+  create(
+    @CurrentUser('id') locataireId: string, // Récupération de l'ID du Locataire via le token
+    @Body() createReservationDto: CreateReservationDto,
   ) {
-    // Le service s'assure que seul le propriétaire de la ressource peut modifier le statut
-    return this.reservationService.updateReservationStatus(
-      ownerId,
+    return this.reservationService.createReservation(
+      locataireId,
+      createReservationDto,
+    );
+  }
+
+  @Get('made')
+  @ApiOperation({
+    summary:
+      "Lister toutes les réservations faites par l'utilisateur (Locataire)",
+  })
+  getReservationsMade(@CurrentUser('id') locataireId: string) {
+    return this.reservationService.getReservationsMade(locataireId);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Annuler une de MES réservations (Locataire)' })
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    description: 'Réservation annulée (statut CANCELED).',
+  })
+  deleteReservation(
+    @Param('id', ParseUUIDPipe) reservationId: string,
+    @CurrentUser('id') locataireId: string,
+  ) {
+    // Le service vérifie que l'utilisateur est bien le locataire et que le statut est PENDING
+    return this.reservationService.deleteReservation(
       reservationId,
-      dto,
+      locataireId,
+    );
+  }
+
+  // ----------------------------------------------------
+  // CRUD LOCATEUR (Réservations reçues pour ses ressources)
+  // ----------------------------------------------------
+
+  @Get('received')
+  @ApiOperation({
+    summary:
+      'Lister toutes les demandes de réservation reçues pour MES ressources (Locateur)',
+  })
+  getReservationsReceived(@CurrentUser('id') locateurId: string) {
+    return this.reservationService.getReservationsReceived(locateurId);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({
+    summary: "Mettre à jour le statut d'une réservation reçue (Locateur)",
+  })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Statut mis à jour.' })
+  updateStatus(
+    @Param('id', ParseUUIDPipe) reservationId: string,
+    @CurrentUser('id') locateurId: string,
+    @Body() updateStatusDto: UpdateStatusDto,
+  ) {
+    // Le service vérifie que l'utilisateur est bien le propriétaire de la ressource
+    return this.reservationService.updateReservationStatus(
+      reservationId,
+      locateurId,
+      updateStatusDto,
     );
   }
 }

@@ -13,12 +13,9 @@ datasource db {
 // ----------------------------------------------------
 
 enum Status {
-  // PENDING : Demande reçue, en attente de rappel par le Locateur.
   PENDING
-  // CANCELED : Annulée par le Locataire ou le Locateur.
   CANCELED
-  // CONFIRMED: Le Locateur a contacté le Locataire et confirmé la réservation/paiement.
-  CONFIRMED // NOUVEAU STATUT pour la validation manuelle
+  CONFIRMED
 }
 
 

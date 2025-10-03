@@ -7,44 +7,39 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
-import { MailService } from 'src/mail/mail.service'; // Import du service mail
+import { MailService } from 'src/mail/mail.service';
 import { Reservation, Status } from '@prisma/client';
 
 @Injectable()
 export class ReservationService {
   constructor(
     private prisma: PrismaService,
-    private mailService: MailService, // Injection du service mail
+    private mailService: MailService, // ✅ Injection du service mail
   ) {}
 
   /**
-   * Vérifie le chevauchement d'horaire pour une ressource donnée.
-   * @param resourceId ID de la ressource.
-   * @param dateDebut Début de la période demandée.
-   * @param dateFin Fin de la période demandée.
-   * @returns La réservation en conflit ou null.
+   * Logique de détection de chevauchement d'horaire.
+   * On cherche des réservations actives (PENDING ou CONFIRMED) qui se superposent.
    */
   private async checkAvailability(
     resourceId: string,
     dateDebut: Date,
     dateFin: Date,
   ): Promise<Reservation | null> {
-    // La date de début ne doit pas être après la date de fin
     if (dateDebut >= dateFin) {
       throw new BadRequestException(
         'La date de début doit précéder la date de fin.',
       );
     }
 
-    // Requête pour trouver une réservation existante qui chevauche l'intervalle demandé
     const conflictReservation = await this.prisma.reservation.findFirst({
       where: {
         resourceId,
         status: {
-          in: [Status.PENDING, Status.CONFIRMED], // Ne vérifie que les statuts actifs
+          in: [Status.PENDING, Status.CONFIRMED], // Seules ces réservations bloquent
         },
         OR: [
-          // Chevauchement : Une réservation existante commence avant la fin de la nouvelle demande ET finit après le début de la nouvelle demande
+          // Logique de collision A: L'existante commence avant la fin de la nouvelle ET finit après le début de la nouvelle
           {
             dateDebut: { lt: dateFin },
             dateFin: { gt: dateDebut },
@@ -56,17 +51,23 @@ export class ReservationService {
     return conflictReservation;
   }
 
+  // ----------------------------------------------------
+  // LOGIQUE LOCATAIRE (CRUD de Réservation)
+  // ----------------------------------------------------
+
   /**
-   * 1. Vérifie la disponibilité.
-   * 2. Crée la réservation.
-   * 3. Notifie le Locateur par email.
+   * Crée une demande de réservation et notifie le Locateur.
    * @param locataireId ID de l'utilisateur qui fait la demande.
    * @param dto Données de la réservation.
    */
   async createReservation(locataireId: string, dto: CreateReservationDto) {
+    const startDate = new Date(dto.dateDebut);
+    const endDate = new Date(dto.dateFin);
+
+    // 1. Charger la ressource (incluant son propriétaire pour la sécurité et l'email)
     const resource = await this.prisma.resource.findUnique({
       where: { id: dto.resourceId },
-      include: { owner: true }, // Inclure le Locateur pour l'email
+      include: { owner: true },
     });
 
     if (!resource) {
@@ -75,18 +76,18 @@ export class ReservationService {
       );
     }
 
-    // Le locataire ne peut pas réserver sa propre ressource.
+    // Sécurité: Le locataire ne peut pas réserver sa propre ressource.
     if (resource.ownerId === locataireId) {
       throw new ForbiddenException(
         'Vous ne pouvez pas réserver votre propre ressource.',
       );
     }
 
-    // 1. Détection de Conflit
+    // 2. Détection de Conflit
     const conflict = await this.checkAvailability(
       dto.resourceId,
-      dto.dateDebut,
-      dto.dateFin,
+      startDate,
+      endDate,
     );
     if (conflict) {
       throw new BadRequestException(
@@ -94,69 +95,53 @@ export class ReservationService {
       );
     }
 
-    // 2. Création de la Réservation
+    // 3. Création de la Réservation (Statut PENDING par défaut)
     const newReservation = await this.prisma.reservation.create({
       data: {
         ...dto,
         locataireId, // Ajout de l'ID du Locataire authentifié
-        dateDebut: new Date(dto.dateDebut),
-        dateFin: new Date(dto.dateFin),
+        dateDebut: startDate,
+        dateFin: endDate,
+      },
+      include: {
+        // Inclure les données pour l'email
+        resource: true,
+        locataire: true,
       },
     });
 
-    // 3. Notification par Email
-    const locataire = await this.prisma.user.findUnique({
-      where: { id: locataireId },
-    });
-    if (locataire) {
-      await this.mailService.sendReservationNotification(
-        resource.owner,
-        locataire,
-        newReservation,
-        resource,
-      );
-    }
+    // 4. Notification par Email au Locateur
+    await this.mailService.sendReservationNotification(
+      resource.owner,
+      newReservation.locataire, // Le locataire est inclus dans newReservation
+      newReservation,
+      resource,
+    );
 
     return newReservation;
   }
 
   /**
-   * Liste toutes les réservations faites par l'utilisateur connecté (Locataire).
-   * @param locataireId ID de l'utilisateur Locataire.
+   * Liste toutes les réservations faites par l'utilisateur connecté.
    */
   async getReservationsMade(locataireId: string) {
     return this.prisma.reservation.findMany({
       where: { locataireId },
       orderBy: { createdAt: 'desc' },
-      include: { resource: { include: { owner: true } } }, // Inclure la ressource et son propriétaire
-    });
-  }
-
-  /**
-   * Liste toutes les réservations reçues pour les ressources du Locateur connecté.
-   * @param locateurId ID de l'utilisateur Locateur.
-   */
-  async getReservationsReceived(locateurId: string) {
-    return this.prisma.reservation.findMany({
-      where: {
-        resource: {
-          ownerId: locateurId, // Filtre par l'ID du Locateur propriétaire de la ressource
-        },
-      },
-      orderBy: { createdAt: 'desc' },
       include: {
-        locataire: {
-          select: { id: true, email: true, username: true, contactPhone: true },
-        }, // Infos du Locataire
-        resource: true,
+        resource: {
+          select: {
+            name: true,
+            type: true,
+            owner: { select: { email: true } },
+          },
+        },
       },
     });
   }
 
   /**
    * Annulation de la réservation par le Locataire.
-   * @param reservationId ID de la réservation à annuler.
-   * @param locataireId ID de l'utilisateur qui fait l'annulation.
    */
   async deleteReservation(reservationId: string, locataireId: string) {
     const reservation = await this.prisma.reservation.findUnique({
@@ -169,42 +154,63 @@ export class ReservationService {
       );
     }
 
-    // Vérifie si l'utilisateur est bien le créateur de la réservation
+    // Autorisation: Seul le créateur peut annuler.
     if (reservation.locataireId !== locataireId) {
       throw new ForbiddenException(
         'Vous ne pouvez annuler que vos propres réservations.',
       );
     }
 
-    // Seules les réservations en attente (PENDING) peuvent être annulées par le Locataire
+    // Condition: Seules les réservations en attente (PENDING) peuvent être annulées.
     if (reservation.status !== Status.PENDING) {
       throw new BadRequestException(
-        `Impossible d'annuler une réservation avec le statut ${reservation.status}.`,
+        `Impossible d'annuler une réservation avec le statut ${reservation.status}. Seules les demandes PENDING peuvent être annulées.`,
       );
     }
 
-    // Le plus simple est de mettre le statut à CANCELED au lieu de la supprimer de la DB
+    // Passage du statut à CANCELED (pas de suppression physique)
     return this.prisma.reservation.update({
       where: { id: reservationId },
       data: { status: Status.CANCELED },
     });
   }
 
+  // ----------------------------------------------------
+  // LOGIQUE LOCATEUR (Gestion des Réservations Reçues)
+  // ----------------------------------------------------
+
+  /**
+   * Liste toutes les réservations reçues pour les ressources du Locateur connecté.
+   */
+  async getReservationsReceived(locateurId: string) {
+    return this.prisma.reservation.findMany({
+      where: {
+        resource: {
+          ownerId: locateurId, // Filtrage par propriété de la ressource
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        locataire: {
+          select: { id: true, email: true, username: true, contactPhone: true },
+        },
+        resource: { select: { name: true, type: true } },
+      },
+    });
+  }
+
   /**
    * Mise à jour du statut par le Locateur (Propriétaire de la Ressource).
-   * @param reservationId ID de la réservation.
-   * @param locateurId ID de l'utilisateur Locateur.
-   * @param dto Nouveau statut.
    */
   async updateReservationStatus(
     reservationId: string,
     locateurId: string,
     dto: UpdateStatusDto,
   ) {
-    // 1. Vérifier si la réservation existe et obtenir la ressource
+    // 1. Vérifier si la réservation existe et qu'elle appartient à la ressource du Locateur.
     const reservation = await this.prisma.reservation.findUnique({
       where: { id: reservationId },
-      include: { resource: true }, // Inclure la ressource
+      include: { resource: true },
     });
 
     if (!reservation) {
@@ -213,7 +219,7 @@ export class ReservationService {
       );
     }
 
-    // 2. Vérifier si l'utilisateur est bien le propriétaire de la ressource
+    // 2. Vérification d'autorisation
     if (reservation.resource.ownerId !== locateurId) {
       throw new ForbiddenException(
         "Vous n'êtes pas autorisé à modifier le statut de cette réservation.",

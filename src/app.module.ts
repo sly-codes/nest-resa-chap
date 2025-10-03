@@ -1,20 +1,27 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { ResourceModule } from './resource/resource.module';
+import { MailModule } from './mail/mail.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { ReservationModule } from './reservation/reservation.module';
+import { ResourceModule } from './resource/resource.module';
+import { ConfigModule } from '@nestjs/config'; // ⬅️ NOUVEL IMPORT
 
 @Module({
-  // Tous les modules fonctionnels sont importés ici.
-  // NestJS lit les Controllers de ces modules et les ajoute automatiquement.
-  imports: [PrismaModule, AuthModule, ResourceModule, ReservationModule],
+  imports: [
+    // 1. CONFIGURATION GLOBALE D'ABORD : Lit le .env et expose ConfigService
+    ConfigModule.forRoot({
+      isGlobal: true, // Ceci rend ConfigService disponible partout
+    }),
+    PrismaModule,
+    AuthModule,
+    ResourceModule,
+    ReservationModule,
+    MailModule,
+  ],
 
-  // Seul l'AppController (racine de l'API) reste généralement ici
   controllers: [AppController],
-
-  // Seul l'AppService reste ici
   providers: [AppService],
 })
 export class AppModule {}
