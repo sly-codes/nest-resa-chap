@@ -30,6 +30,26 @@ export class ResourceService {
   }
 
   /**
+   * Récupère une ressource spécifique par son ID.
+   * Utilisé principalement pour l'édition côté Locateur.
+   * @param resourceId L'ID de la ressource à récupérer.
+   * @returns La ressource trouvée.
+   */
+  async getResourceById(resourceId: string): Promise<Resource> {
+    const resource = await this.prisma.resource.findUnique({
+      where: { id: resourceId },
+    });
+
+    if (!resource) {
+      throw new NotFoundException(
+        `Ressource avec ID ${resourceId} introuvable.`,
+      );
+    }
+
+    return resource;
+  }
+
+  /**
    * Liste toutes les ressources disponibles (Catalogue public)
    * @returns Liste des ressources
    */
