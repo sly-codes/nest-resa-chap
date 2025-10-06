@@ -4,11 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
-import { MailService } from 'src/mail/mail.service';
-import { Reservation, Status } from '@prisma/client';
+import { Status, Reservation } from '@prisma/client';
 
 @Injectable()
 export class ReservationService {
@@ -110,10 +110,17 @@ export class ReservationService {
       },
     });
 
-    // 4. Notification par Email au Locateur
-    await this.mailService.sendReservationNotification(
+    // 4. Notifications
+    // a) Notification au Locateur : Nouvelle demande reçue
+    await this.mailService.sendNewRequestToLocateur(
       resource.owner,
-      newReservation.locataire, // Le locataire est inclus dans newReservation
+      newReservation.locataire,
+      newReservation,
+      resource,
+    );
+    // b) ✅ NOUVEAU: Notification au Locataire : Confirmation de l'enregistrement de la demande
+    await this.mailService.sendRequestConfirmationToLocataire(
+      newReservation.locataire,
       newReservation,
       resource,
     );
@@ -146,6 +153,10 @@ export class ReservationService {
   async deleteReservation(reservationId: string, locataireId: string) {
     const reservation = await this.prisma.reservation.findUnique({
       where: { id: reservationId },
+      include: {
+        resource: { include: { owner: true } }, // ✅ Inclure Locateur et Ressource
+        locataire: true, // ✅ Inclure Locataire
+      },
     });
 
     if (!reservation) {
@@ -169,10 +180,20 @@ export class ReservationService {
     }
 
     // Passage du statut à CANCELED (pas de suppression physique)
-    return this.prisma.reservation.update({
+    const canceledReservation = await this.prisma.reservation.update({
       where: { id: reservationId },
       data: { status: Status.CANCELED },
     });
+
+    // 5. ✅ NOUVEAU: Notification au Locateur de l'annulation
+    await this.mailService.sendCancellationToLocateur(
+      reservation.resource.owner,
+      reservation.locataire,
+      canceledReservation,
+      reservation.resource,
+    );
+
+    return canceledReservation;
   }
 
   // ----------------------------------------------------
@@ -199,9 +220,6 @@ export class ReservationService {
     });
   }
 
-  /**
-   * Mise à jour du statut par le Locateur (Propriétaire de la Ressource).
-   */
   async updateReservationStatus(
     reservationId: string,
     locateurId: string,
@@ -210,26 +228,60 @@ export class ReservationService {
     // 1. Vérifier si la réservation existe et qu'elle appartient à la ressource du Locateur.
     const reservation = await this.prisma.reservation.findUnique({
       where: { id: reservationId },
-      include: { resource: true },
+      // ✅ Inclure le locataire et la ressource pour la notification email
+      include: { resource: { include: { owner: true } }, locataire: true },
     });
 
     if (!reservation) {
       throw new NotFoundException(
         `Réservation avec ID ${reservationId} introuvable.`,
       );
-    }
+    } // 2. Vérification d'autorisation
 
-    // 2. Vérification d'autorisation
     if (reservation.resource.ownerId !== locateurId) {
       throw new ForbiddenException(
         "Vous n'êtes pas autorisé à modifier le statut de cette réservation.",
       );
     }
 
-    // 3. Mise à jour du statut
-    return this.prisma.reservation.update({
+    if (dto.status === Status.CONFIRMED) {
+      // ... (LOGIQUE DE CONFLIT DÉTAILLÉE CI-DESSUS) ...
+      const conflict = await this.prisma.reservation.findFirst({
+        where: {
+          id: { not: reservationId }, // Exclure la réservation que nous traitons
+          resourceId: reservation.resourceId,
+          status: { in: [Status.PENDING, Status.CONFIRMED] },
+          OR: [
+            {
+              dateDebut: { lt: reservation.dateFin },
+              dateFin: { gt: reservation.dateDebut },
+            },
+          ],
+        },
+      });
+      if (conflict) {
+        throw new BadRequestException(
+          'Une autre réservation bloque déjà cette période. Impossible de confirmer.',
+        );
+      }
+    }
+
+    // 4. Mise à jour du statut
+    const updatedReservation = await this.prisma.reservation.update({
       where: { id: reservationId },
       data: { status: dto.status },
     });
+
+    // 5. ✅ NOUVEAU: Notification au Locataire du changement de statut
+    if (dto.status === Status.CONFIRMED || dto.status === Status.REJECTED) {
+      await this.mailService.sendStatusChangeToLocataire(
+        reservation.locataire,
+        updatedReservation,
+        reservation.resource,
+        dto.status,
+      );
+    }
+
+    return updatedReservation;
   }
 }

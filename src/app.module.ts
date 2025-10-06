@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { ResourceModule } from './resource/resource.module';
 import { ConfigModule } from '@nestjs/config'; // ⬅️ NOUVEL IMPORT
+import { UserModule } from './users/user.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ConfigModule } from '@nestjs/config'; // ⬅️ NOUVEL IMPORT
     ResourceModule,
     ReservationModule,
     MailModule,
+    UserModule
   ],
 
   controllers: [AppController],

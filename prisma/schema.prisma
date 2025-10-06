@@ -16,6 +16,7 @@ enum Status {
   PENDING
   CANCELED
   CONFIRMED
+  REJECTED
 }
 
 
