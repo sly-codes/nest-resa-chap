@@ -6,15 +6,17 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // CORS
   app.enableCors({
-    // Autoriser uniquement le port de développement d'Angular
-    origin: 'https://ng-resa-chap.vercel.app',
-    // Autoriser toutes les méthodes (GET, POST, PATCH, DELETE, etc.)
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    // Autoriser les headers nécessaires (Content-Type, Authorization, etc.)
-    allowedHeaders: 'Content-Type, Accept, Authorization',
-    // Permet aux cookies et autres identifiants d'être envoyés (important pour les futurs tokens)
-    credentials: true,
+    origin: [
+      'http://localhost:4200',
+      'https://ng-resa-chap.vercel.app',
+    ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    credentials: true, // important pour les cookies ou headers auth
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   app.useGlobalPipes(
@@ -33,8 +35,6 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, documentFactory);
 
   await app.listen(process.env.PORT ?? 3000);
-
-  console.log(`Application is running on: ${await app.getUrl()}`);
-  console.log(`Swagger api docs: ${await app.getUrl()}/api/docs`);
+  console.log(`🚀 App running on: ${await app.getUrl()}`);
 }
 bootstrap();
