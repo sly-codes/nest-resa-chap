@@ -5,7 +5,12 @@ import {
 } from '@nestjs/common';
 import { Resource } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateResourceDto, UpdateResourceDto } from './dto';
+import {
+  CreateResourceDto,
+  GetResourcesDto,
+  ResourceTypes,
+  UpdateResourceDto,
+} from './dto';
 
 @Injectable()
 export class ResourceService {
@@ -50,11 +55,42 @@ export class ResourceService {
   }
 
   /**
-   * Liste toutes les ressources disponibles (Catalogue public)
+   * Liste toutes les ressources disponibles (Catalogue public) avec filtres.
+   * @param filters Les filtres de recherche et de type
    * @returns Liste des ressources
    */
-  async getAllResources(): Promise<any[]> {
+  async getAllResources(filters: GetResourcesDto): Promise<any[]> {
+    const { search, type } = filters;
+
+    // Construction de la clause WHERE de Prisma
+    const where: any = {};
+
+    // 1. Filtrage par Type
+    if (type && ResourceTypes.includes(type)) {
+      where.type = type;
+    }
+
+    // 2. Filtrage par Recherche (recherche sur le nom OU la description)
+    if (search) {
+      // Utilisation de l'opérateur OR pour rechercher dans plusieurs champs
+      where.OR = [
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive', // Optionnel, si votre base de données le supporte (PostgreSQL)
+          },
+        },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
     return this.prisma.resource.findMany({
+      where, // ✅ Applique la clause WHERE construite
       orderBy: {
         createdAt: 'desc',
       },
@@ -64,8 +100,12 @@ export class ResourceService {
         type: true,
         description: true,
         createdAt: true,
-        // Inclure l'ownerId si le Locataire veut voir qui est le propriétaire
         ownerId: true,
+        owner: {
+          select: {
+            email: true,
+          },
+        },
       },
     });
   }

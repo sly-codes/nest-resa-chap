@@ -1,12 +1,13 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable, Logger } from '@nestjs/common';
 // ✅ Import de Status pour la logique de statut
-import { Reservation, Resource, User, Status } from '@prisma/client';
+import { Reservation, Resource, Status, User } from '@prisma/client';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly dashboardUrl = 'http://localhost:4200/reservations';
+  private readonly dashboardUrl =
+    'https://ng-resa-chap.vercel.app/reservations';
 
   constructor(private mailerService: MailerService) {}
 

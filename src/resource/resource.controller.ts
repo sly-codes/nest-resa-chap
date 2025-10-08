@@ -9,10 +9,11 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ResourceService } from './resource.service';
-import { CreateResourceDto, UpdateResourceDto } from './dto';
+import { CreateResourceDto, GetResourcesDto, UpdateResourceDto } from './dto';
 import { AtGuard } from 'src/common/guards';
 import { CurrentUser } from 'src/common/decorators';
 import {
@@ -20,6 +21,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 
 @ApiTags('Ressources (Catalogue Public & Gestion Locateur)')
@@ -33,9 +35,24 @@ export class ResourceController {
 
   @Get() // -> /resources
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'PUBLIC : Lister toutes les ressources' })
-  getAll() {
-    return this.resourceService.getAllResources();
+  @ApiOperation({
+    summary: 'PUBLIC : Lister toutes les ressources avec filtres',
+  })
+  // ✅ Documentez les paramètres de requête pour Swagger
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Terme de recherche dans le nom/description',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: ['ROOM', 'EQUIPMENT'],
+    description: 'Filtre par type de ressource',
+  })
+  getAll(@Query() filters: GetResourcesDto) {
+    // ✅ Utilisez @Query() pour capturer les filtres
+    return this.resourceService.getAllResources(filters);
   }
 
   // =======================================================

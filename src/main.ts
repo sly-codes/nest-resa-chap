@@ -8,7 +8,7 @@ async function bootstrap() {
 
   app.enableCors({
     // Autoriser uniquement le port de développement d'Angular
-    origin: 'http://localhost:4200',
+    origin: 'https://ng-resa-chap.vercel.app',
     // Autoriser toutes les méthodes (GET, POST, PATCH, DELETE, etc.)
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     // Autoriser les headers nécessaires (Content-Type, Authorization, etc.)
@@ -34,7 +34,7 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 
-   console.log(`Application is running on: ${await app.getUrl()}`);
+  console.log(`Application is running on: ${await app.getUrl()}`);
   console.log(`Swagger api docs: ${await app.getUrl()}/api/docs`);
 }
 bootstrap();
