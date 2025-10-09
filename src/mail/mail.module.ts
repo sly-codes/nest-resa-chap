@@ -14,16 +14,16 @@ import { ConfigService } from '@nestjs/config'; // Pour charger les variables d'
         // ⚠️ Utilisation d'Ethereal Mail pour le développement/test (simule un SMTP)
         // Vous DEVEZ utiliser un service réel comme SendGrid, Mailgun ou un SMTP d'entreprise en production.
         transport: {
-          host: configService.get<string>('MAIL_HOST'), 
-          port: configService.get<number>('MAIL_PORT'), 
-          secure: configService.get<string>('MAIL_SECURE') === 'true', 
+          host: configService.get<string>('MAIL_HOST'),
+          port: configService.get<number>('MAIL_PORT'),
+          secure: configService.get<string>('MAIL_SECURE') === 'true',
           auth: {
             user: configService.get<string>('MAIL_USER'),
             pass: configService.get<string>('MAIL_PASS'),
           },
         },
         defaults: {
-          from: '"Resa Chap Notification" <no-reply@resachap.com>', // L'adresse d'envoi par défaut
+          from: '"Resa Chap Notification" <no-reply@sly.codes>',
         },
       }),
       inject: [ConfigService],
