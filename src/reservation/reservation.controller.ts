@@ -10,6 +10,7 @@ import {
   HttpStatus,
   HttpCode,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
@@ -22,6 +23,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { PaginationQueryDto } from './dto';
 
 @ApiTags('Reservations (Locataire & Locateur)')
 @Controller('reservations')
@@ -58,10 +60,13 @@ export class ReservationController {
   @Get('made')
   @ApiOperation({
     summary:
-      "Lister toutes les réservations faites par l'utilisateur (Locataire)",
+      "Lister toutes les réservations faites par l'utilisateur (Locataire) avec recherche et filtres.", // ✨ Description mise à jour
   })
-  getReservationsMade(@CurrentUser('id') locataireId: string) {
-    return this.reservationService.getReservationsMade(locataireId);
+  getReservationsMade(
+    @CurrentUser('id') locataireId: string,
+    @Query() query: PaginationQueryDto, // ✨ Injection des paramètres de requête
+  ) {
+    return this.reservationService.getReservationsMade(locataireId, query);
   }
 
   @Delete(':id')
@@ -89,12 +94,16 @@ export class ReservationController {
   @Get('received')
   @ApiOperation({
     summary:
-      'Lister toutes les demandes de réservation reçues pour MES ressources (Locateur)',
+      'Lister toutes les demandes de réservation reçues pour MES ressources (Locateur) avec recherche et filtres.', // ✨ Description mise à jour
   })
-  getReservationsReceived(@CurrentUser('id') locateurId: string) {
-    return this.reservationService.getReservationsReceived(locateurId);
+  getReservationsReceived(
+    @CurrentUser('id') locateurId: string,
+    @Query() query: PaginationQueryDto, // ✨ Injection des paramètres de requête
+  ) {
+    return this.reservationService.getReservationsReceived(locateurId, query);
   }
 
+  
   @Patch(':id/status')
   @ApiOperation({
     summary: "Mettre à jour le statut d'une réservation reçue (Locateur)",

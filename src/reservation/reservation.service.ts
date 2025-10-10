@@ -2,16 +2,19 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Reservation, Status } from '@prisma/client';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PaginationQueryDto } from './dto';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
-import { Status, Reservation } from '@prisma/client';
 
 @Injectable()
 export class ReservationService {
+  private readonly logger = new Logger(ReservationService.name);
   constructor(
     private prisma: PrismaService,
     private mailService: MailService, // ✅ Injection du service mail
@@ -110,41 +113,82 @@ export class ReservationService {
       },
     });
 
-    // 4. Notifications
-    // a) Notification au Locateur : Nouvelle demande reçue
-    await this.mailService.sendNewRequestToLocateur(
-      resource.owner,
-      newReservation.locataire,
-      newReservation,
-      resource,
-    );
-    // b) ✅ NOUVEAU: Notification au Locataire : Confirmation de l'enregistrement de la demande
-    await this.mailService.sendRequestConfirmationToLocataire(
-      newReservation.locataire,
-      newReservation,
-      resource,
-    );
+    try {
+      // 4. Notifications
+      // a) Notification au Locateur : Nouvelle demande reçue
+      await this.mailService.sendNewRequestToLocateur(
+        resource.owner,
+        newReservation.locataire,
+        newReservation,
+        resource,
+      );
+      // b) ✅ NOUVEAU: Notification au Locataire : Confirmation de l'enregistrement de la demande
+      await this.mailService.sendRequestConfirmationToLocataire(
+        newReservation.locataire,
+        newReservation,
+        resource,
+      );
+    } catch (error) {
+      this.logger.error(
+        "Échec de la notification par email. Poursuite de l'opération.",
+        error.stack,
+      );
+    }
 
     return newReservation;
   }
 
   /**
-   * Liste toutes les réservations faites par l'utilisateur connecté.
+   * Liste toutes les réservations faites par l'utilisateur connecté avec filtres.
    */
-  async getReservationsMade(locataireId: string) {
-    return this.prisma.reservation.findMany({
-      where: { locataireId },
-      orderBy: { createdAt: 'desc' },
-      include: {
+  async getReservationsMade(
+    locataireId: string,
+    query: PaginationQueryDto, // ✨ Accepter le DTO de requête
+  ) {
+    const { page = 1, limit = 10, search, status } = query;
+    const skip = (page - 1) * limit;
+
+    // Construction dynamique des filtres
+    const where: any = {
+      locataireId,
+      ...(status && { status }), // Ajoute { status: Status.XXX } si status est présent
+      ...(search && {
         resource: {
-          select: {
-            name: true,
-            type: true,
-            owner: { select: { email: true } },
+          name: {
+            contains: search, // Recherche par nom de ressource
+            mode: 'insensitive', // Optionnel, mais recommandé pour MySQL/Postgres
           },
         },
-      },
-    });
+      }),
+    };
+
+    const [reservations, total] = await this.prisma.$transaction([
+      // 1. Récupération des données paginées et filtrées
+      this.prisma.reservation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          resource: {
+            select: {
+              name: true,
+              type: true,
+              owner: { select: { email: true } },
+            },
+          },
+        },
+      }),
+      // 2. Comptage total pour la pagination
+      this.prisma.reservation.count({ where }),
+    ]);
+
+    return {
+      data: reservations,
+      total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
   }
 
   /**
@@ -201,23 +245,58 @@ export class ReservationService {
   // ----------------------------------------------------
 
   /**
-   * Liste toutes les réservations reçues pour les ressources du Locateur connecté.
+   * Liste toutes les réservations reçues pour les ressources du Locateur connecté avec filtres.
    */
-  async getReservationsReceived(locateurId: string) {
-    return this.prisma.reservation.findMany({
-      where: {
-        resource: {
-          ownerId: locateurId, // Filtrage par propriété de la ressource
-        },
+  async getReservationsReceived(
+    locateurId: string,
+    query: PaginationQueryDto, // ✨ Accepter le DTO de requête
+  ) {
+    const { page = 1, limit = 10, search, status } = query;
+    const skip = (page - 1) * limit;
+
+    // Construction dynamique des filtres
+    const where: any = {
+      resource: {
+        ownerId: locateurId, // Filtrage par propriété de la ressource
+        ...(search && {
+          name: {
+            contains: search, // Recherche par nom de ressource
+            mode: 'insensitive',
+          },
+        }),
       },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        locataire: {
-          select: { id: true, email: true, username: true, contactPhone: true },
+      ...(status && { status }), // Ajoute le filtre de statut si présent
+    };
+
+    const [reservations, total] = await this.prisma.$transaction([
+      // 1. Récupération des données paginées et filtrées
+      this.prisma.reservation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          locataire: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              contactPhone: true,
+            },
+          },
+          resource: { select: { name: true, type: true } },
         },
-        resource: { select: { name: true, type: true } },
-      },
-    });
+      }),
+      // 2. Comptage total pour la pagination
+      this.prisma.reservation.count({ where }),
+    ]);
+
+    return {
+      data: reservations,
+      total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
   }
 
   async updateReservationStatus(
