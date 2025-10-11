@@ -1,15 +1,17 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 // ✅ Import de Status pour la logique de statut
 import { Reservation, Resource, Status, User } from '@prisma/client';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly dashboardUrl =
-    'https://ng-resa-chap.vercel.app/reservations';
 
-  constructor(private mailerService: MailerService) {}
+  constructor(
+    private mailerService: MailerService,
+    private readonly configService: ConfigService,
+  ) {}
 
   // Méthode générique d'envoi
   private async sendMailTemplate(
@@ -143,7 +145,7 @@ export class MailService {
                     <table role="presentation" style="width: 100%; margin: 32px 0;">
                       <tr>
                         <td style="text-align: center;">
-                          <a href="${this.dashboardUrl}/received" 
+                          <a href="${this.configService.get<string>('CLIENT_URL')}reservations/received" 
                              style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: all 0.2s;">
                             Gérer les Réservations →
                           </a>
@@ -276,10 +278,10 @@ export class MailService {
                     <table role="presentation" style="width: 100%; margin: 32px 0;">
                       <tr>
                         <td style="text-align: center;">
-                          <a href="${this.dashboardUrl}/made" 
+                          <ahref="${this.configService.get<string>('CLIENT_URL')}reservations/made" 
                              style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
                             Suivre Ma Réservation →
-                          </a>
+                          </ahref=>
                         </td>
                       </tr>
                     </table>
@@ -434,7 +436,7 @@ export class MailService {
                     <table role="presentation" style="width: 100%; margin: 32px 0;">
                       <tr>
                         <td style="text-align: center;">
-                          <a href="${this.dashboardUrl}/made" 
+                          <a href="${this.configService.get<string>('CLIENT_URL')}reservations/made" 
                              style="display: inline-block; background-color: ${color}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px ${color}44;">
                             Voir Mes Réservations →
                           </a>
@@ -571,7 +573,7 @@ export class MailService {
                     <table role="presentation" style="width: 100%; margin: 32px 0;">
                       <tr>
                         <td style="text-align: center;">
-                          <a href="${this.dashboardUrl}/received" 
+                          <a href="${this.configService.get<string>('CLIENT_URL')}reservations/received" 
                              style="display: inline-block; background-color: #6b7280; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);">
                             Voir Mes Réservations →
                           </a>

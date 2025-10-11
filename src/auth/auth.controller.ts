@@ -1,33 +1,37 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
-  UseGuards,
   Req,
   Res,
-  Get,
+  UseGuards,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { CurrentUser } from 'src/common/decorators';
+import { AtGuard, RtGuard } from 'src/common/guards';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto';
 import { Tokens } from './types';
-import { AtGuard, RtGuard } from 'src/common/guards';
-import { CurrentUser } from 'src/common/decorators';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 // 🚨 CORRECTION TS1272 : On utilise 'import type' car Response est un type dans un décorateur
+import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 
 @ApiTags('Authentification (Locateur)')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('local/signup')
   @HttpCode(HttpStatus.CREATED)
@@ -89,7 +93,7 @@ export class AuthController {
     const tokens = req.user; // Les tokens JWT
 
     // L'URL de votre route Angular pour gérer le callback
-    const frontendCallbackUrl = 'http://localhost:4200/auth/callback';
+    const frontendCallbackUrl = `${this.configService.get<string>('CLIENT_URL')}/auth/callback`;
 
     // res.redirect est la méthode Express correcte
     res.redirect(
@@ -117,7 +121,7 @@ export class AuthController {
     const tokens = req.user; // Les tokens JWT générés par votre service
 
     // 🚨 IMPORTANT : Le path Angular doit correspondre au nouveau callback 🚨
-    const frontendCallbackUrl = 'http://localhost:4200/auth/callback';
+    const frontendCallbackUrl = `${this.configService.get<string>('CLIENT_URL')}/auth/callback`;
 
     // Redirection vers le frontend
     res.redirect(

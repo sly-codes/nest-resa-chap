@@ -14,7 +14,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
   imports: [
     // 1. CONFIGURATION GLOBALE D'ABORD : Lit le .env et expose ConfigService
     ConfigModule.forRoot({
-      isGlobal: true, // Ceci rend ConfigService disponible partout
+      isGlobal: true, // Rend le ConfigService disponible partout
+      envFilePath: '.env', // Spécifie le fichier (par défaut, mais bonne pratique)
     }),
     PrismaModule,
     AuthModule,
@@ -22,7 +23,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ReservationModule,
     MailModule,
     UserModule,
-    DashboardModule
+    DashboardModule,
   ],
 
   controllers: [AppController],

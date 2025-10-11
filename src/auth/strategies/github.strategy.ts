@@ -1,23 +1,22 @@
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-github'; // Correct import for GitHub
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { Strategy } from 'passport-github2'; // ✅ Utiliser 'passport-github2' (le plus récent et compatible)
 import { AuthService } from '../auth.service';
 
-// 🚨 REMPLACER AVEC VOS VRAIES CLÉS 🚨
-const GITHUB_CLIENT_ID = 'Ov23liND0cgq1zFu2JTu';
-const GITHUB_CLIENT_SECRET = 'b3fa84b92a5f324d63883b14c203c96b22388c99';
-const GITHUB_CALLBACK_URL = 'http://localhost:3000/auth/github/redirect'; // Assurez-vous que le port est correct
-
+// Le nom de la stratégie est 'github'
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
-  constructor(private readonly authService: AuthService) {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService, // ✅ Injection du ConfigService
+  ) {
     super({
-      clientID: GITHUB_CLIENT_ID,
-      clientSecret: GITHUB_CLIENT_SECRET,
-      callbackURL: GITHUB_CALLBACK_URL,
+      clientID: configService.get<string>('GITHUB_CLIENT_ID'),
+      clientSecret: configService.get<string>('GITHUB_CLIENT_SECRET'),
+      callbackURL: configService.get<string>('GITHUB_CALLBACK_URL'),
       scope: ['user:email', 'read:user'], // Demande d'accès à l'email et au profil
-      // 💡 Astuce : 'prompt: "select_account"' n'est pas nécessaire pour GitHub,
-      // car GitHub ne gère pas la sélection de plusieurs comptes comme Google.
+      // 💡 GitHub ne gère pas "select_account" donc inutile ici
     });
   }
 

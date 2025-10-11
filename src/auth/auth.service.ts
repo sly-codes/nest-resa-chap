@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon from 'argon2';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -11,6 +12,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ----------------------------------------------------------------------
@@ -68,18 +70,21 @@ export class AuthService {
   }
 
   async getTokens(userId: string, email: string): Promise<Tokens> {
+    const atSecret = this.configService.get<string>('JWT_AT_SECRET'); 
+    const rtSecret = this.configService.get<string>('JWT_RT_SECRET'); 
+
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(
         { id: userId, email },
         {
-          secret: 'AT_SECRET', // Remplacer par une variable d'environnement
+          secret: atSecret,
           expiresIn: 60 * 15, // 15 minutes
         },
       ),
       this.jwtService.signAsync(
         { id: userId, email },
         {
-          secret: 'RT_SECRET', // Remplacer par une variable d'environnement
+          secret: rtSecret,
           expiresIn: 60 * 60 * 24 * 7, // 7 jours
         },
       ),
