@@ -24,18 +24,31 @@ enum Status {
 // 1. User (Locateur ET Locataire)
 // ----------------------------------------------------
 
+enum Provider {
+  LOCAL
+  GOOGLE
+  GITHUB
+}
+
 model User {
-  id              String      @id @default(uuid())
-  email           String      @unique
-  // Informations de profil (non requises à l'inscription)
-  username        String?     // Pour l'affichage public
-  contactPhone    String?     // Numéro de contact
-  firstName       String?
-  lastName        String?
+  id             String      @id @default(uuid())
+  email          String      @unique
+  username       String?     @unique
+  contactPhone   String?
+  firstName      String?
+  lastName       String?
+  hashedPassword String?     // Rendre optionnel pour les utilisateurs sociaux
+  hashedRt       String?
+  isVerified     Boolean     @default(false)
   
-  // Authentification
-  hashedPassword  String
-  hashedRt        String?
+  // 🚨 CHAMPS POUR AUTH SOCIALE 🚨
+  provider       Provider    @default(LOCAL)
+  providerId     String?
+
+  // 🚨 INDEX UNIQUE COMPOSITE 🚨
+  // Assure qu'un utilisateur n'est inscrit qu'une seule fois par plateforme
+  @@unique([provider, providerId])
+
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -68,7 +81,6 @@ model Resource {
   reservations    Reservation[]
 }
 
-
 // ----------------------------------------------------
 // 3. Reservation (La Demande de Réservation)
 // ----------------------------------------------------
@@ -96,3 +108,7 @@ model Reservation {
   // Notes facultatives du locataire
   notes               String?
 }
+
+
+
+

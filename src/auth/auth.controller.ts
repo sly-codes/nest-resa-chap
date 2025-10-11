@@ -6,11 +6,13 @@ import {
   Post,
   UseGuards,
   Req,
+  Res,
+  Get,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto';
 import { Tokens } from './types';
-import { AtGuard, RtGuard } from 'src/common/guards'; // Les Guards 
+import { AtGuard, RtGuard } from 'src/common/guards';
 import { CurrentUser } from 'src/common/decorators';
 import {
   ApiTags,
@@ -18,6 +20,9 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+// 🚨 CORRECTION TS1272 : On utilise 'import type' car Response est un type dans un décorateur
+import type { Response } from 'express';
 
 @ApiTags('Authentification (Locateur)')
 @Controller('auth')
@@ -60,5 +65,63 @@ export class AuthController {
   })
   refreshToken(@CurrentUser() user: any): Promise<Tokens> {
     return this.authService.refreshTokens(user.id, user.refreshToken);
+  }
+
+  // ----------------------------------------------------
+  // NOUVEAUX ENDPOINTS GOOGLE
+  // ----------------------------------------------------
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Déclenche la connexion via Google OAuth' })
+  googleAuth(): void {
+    // La redirection vers Google est gérée par NestJS/Passport
+  }
+
+  @Get('google/redirect')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(
+    @Req() req,
+    // La redirection fonctionne si passthrough est utilisé ou si l'on omet le type de retour
+    // Pour la propreté, on garde l'usage de @Res
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const tokens = req.user; // Les tokens JWT
+
+    // L'URL de votre route Angular pour gérer le callback
+    const frontendCallbackUrl = 'http://localhost:4200/auth/callback';
+
+    // res.redirect est la méthode Express correcte
+    res.redirect(
+      `${frontendCallbackUrl}?at=${tokens.access_token}&rt=${tokens.refresh_token}`,
+    );
+  }
+
+  // ----------------------------------------------------
+  // NOUVEAUX ENDPOINTS GITHUB
+  // ----------------------------------------------------
+
+  @Get('github')
+  @UseGuards(AuthGuard('github')) // Utilise le Guard GitHub pour la redirection
+  @ApiOperation({ summary: 'Déclenche la connexion via GitHub OAuth' })
+  githubAuth(): void {
+    // NestJS/Passport gère la redirection vers GitHub
+  }
+
+  @Get('github/redirect')
+  @UseGuards(AuthGuard('github'))
+  async githubAuthRedirect(
+    @Req() req,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const tokens = req.user; // Les tokens JWT générés par votre service
+
+    // 🚨 IMPORTANT : Le path Angular doit correspondre au nouveau callback 🚨
+    const frontendCallbackUrl = 'http://localhost:4200/auth/callback';
+
+    // Redirection vers le frontend
+    res.redirect(
+      `${frontendCallbackUrl}?at=${tokens.access_token}&rt=${tokens.refresh_token}`,
+    );
   }
 }

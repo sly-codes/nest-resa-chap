@@ -1,9 +1,9 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as argon from 'argon2';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthDto } from './dto';
-import { Tokens } from './types';
-import * as argon from 'argon2';
-import { JwtService } from '@nestjs/jwt';
+import { SocialUserDto, Tokens } from './types'; // Assurez-vous que SocialUserDto est mis à jour
 
 @Injectable()
 export class AuthService {
@@ -13,19 +13,60 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  // ----------------------------------------------------------------------
+  // LOGIQUE DE CONNEXION SOCIALE
+  // ----------------------------------------------------------------------
+
   /**
-   * Hache une chaîne de caractères (principalement les mots de passe et les Refresh Tokens).
-   * @param data - La chaîne à hacher.
+   * Valide/Crée l'utilisateur social et génère des tokens.
    */
+  async validateSocialUser(userDto: SocialUserDto): Promise<Tokens> {
+    // 1. Chercher l'utilisateur par providerId ET provider
+    // Ceci fonctionne après l'application du schéma Prisma (unique composite key)
+    let user = await this.prisma.user.findUnique({
+      where: {
+        provider_providerId: {
+          provider: userDto.provider,
+          providerId: userDto.providerId,
+        },
+      },
+    });
+
+    // 2. Création si l'utilisateur n'existe pas
+    if (!user) {
+      // 💡 Optionnel : Logique de lien par email ici si besoin
+
+      user = await this.prisma.user.create({
+        data: {
+          email: userDto.email,
+          firstName: userDto.firstName,
+          lastName: userDto.lastName,
+          provider: userDto.provider,
+          providerId: userDto.providerId,
+          // IMPORTANT : Pas de hashedPassword ici
+          isVerified: true,
+        },
+      });
+    }
+
+    // 3. Générer les tokens AT et RT pour l'utilisateur
+    // Nous avons retiré le troisième argument 'user.provider' car il n'est pas nécessaire dans le JWT payload
+    const tokens = await this.getTokens(user.id, user.email);
+
+    // 4. Mettre à jour le hash du RT
+    await this.updateRtHash(user.id, tokens.refresh_token);
+
+    return tokens;
+  }
+
+  // ----------------------------------------------------------------------
+  // FONCTIONS UTILITAIRES DE SÉCURITÉ
+  // ----------------------------------------------------------------------
+
   hashData(data: string) {
     return argon.hash(data);
   }
 
-  /**
-   * Génère l'Access Token (AT) et le Refresh Token (RT) pour un utilisateur.
-   * @param userId - L'ID de l'utilisateur.
-   * @param email - L'email de l'utilisateur.
-   */
   async getTokens(userId: string, email: string): Promise<Tokens> {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(
@@ -50,11 +91,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Met à jour le Refresh Token haché dans la DB.
-   * @param userId - L'ID de l'utilisateur.
-   * @param rt - Le Refresh Token (brut) à hacher et stocker.
-   */
   async updateRtHash(userId: string, rt: string): Promise<void> {
     const hash = await this.hashData(rt);
     await this.prisma.user.update({
@@ -64,25 +100,22 @@ export class AuthService {
   }
 
   // ----------------------------------------------------
-  // LOGIQUE AUTHENTIFICATION
+  // LOGIQUE AUTHENTIFICATION LOCALE (mise à jour)
   // ----------------------------------------------------
 
   async signupLocal(dto: AuthDto): Promise<Tokens> {
     const hashedPassword = await this.hashData(dto.password);
 
     try {
-      // 1. Créer l'utilisateur (le Locateur)
       const newUser = await this.prisma.user.create({
         data: {
           email: dto.email,
           hashedPassword,
+          // Le provider est 'LOCAL' par défaut dans le schéma
         },
       });
 
-      // 2. Générer les tokens AT et RT
       const tokens = await this.getTokens(newUser.id, newUser.email);
-
-      // 3. Stocker le RT haché
       await this.updateRtHash(newUser.id, tokens.refresh_token);
 
       return tokens;
@@ -99,15 +132,24 @@ export class AuthService {
       where: { email: dto.email },
     });
 
-    if (!user) throw new ForbiddenException('Identifiants incorrects.');
+    if (!user) {
+      throw new ForbiddenException('Identifiants incorrects.');
+    }
+
+    // 🚨 CORRECTION TS2345 : Vérifier si l'utilisateur a un mot de passe (c'est-à-dire un compte LOCAL)
+    if (!user.hashedPassword) {
+      throw new ForbiddenException('Veuillez utiliser la connexion sociale.');
+    }
 
     // 1. Vérifier le mot de passe
     const passwordMatches = await argon.verify(
-      user.hashedPassword,
+      user.hashedPassword, // hashedPassword est garanti non-null ici
       dto.password,
     );
-    if (!passwordMatches)
+
+    if (!passwordMatches) {
       throw new ForbiddenException('Identifiants incorrects.');
+    }
 
     // 2. Générer les nouveaux tokens
     const tokens = await this.getTokens(user.id, user.email);
@@ -119,11 +161,9 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<boolean> {
-    // Invalider le Refresh Token en mettant son champ à NULL
     await this.prisma.user.updateMany({
       where: {
         id: userId,
-        // S'assurer que le RT haché existe (pour éviter de toucher des sessions déjà déconnectées)
         hashedRt: { not: null },
       },
       data: { hashedRt: null },
