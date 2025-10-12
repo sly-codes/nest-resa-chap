@@ -70,21 +70,18 @@ export class AuthService {
   }
 
   async getTokens(userId: string, email: string): Promise<Tokens> {
-    const atSecret = this.configService.get<string>('JWT_AT_SECRET'); 
-    const rtSecret = this.configService.get<string>('JWT_RT_SECRET'); 
-
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(
         { id: userId, email },
         {
-          secret: atSecret,
+          secret: this.configService.get<string>('JWT_AT_SECRET'),
           expiresIn: 60 * 15, // 15 minutes
         },
       ),
       this.jwtService.signAsync(
         { id: userId, email },
         {
-          secret: rtSecret,
+          secret: this.configService.get<string>('JWT_RT_SECRET'),
           expiresIn: 60 * 60 * 24 * 7, // 7 jours
         },
       ),

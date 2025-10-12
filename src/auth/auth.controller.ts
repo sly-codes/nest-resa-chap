@@ -120,7 +120,7 @@ export class AuthController {
   ): Promise<void> {
     const tokens = req.user; // Les tokens JWT générés par votre service
 
-    // 🚨 IMPORTANT : Le path Angular doit correspondre au nouveau callback 🚨
+    // L'URL de votre route Angular pour gérer le callback
     const frontendCallbackUrl = `${this.configService.get<string>('CLIENT_URL')}/auth/callback`;
 
     // Redirection vers le frontend
