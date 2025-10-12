@@ -145,7 +145,7 @@ export class MailService {
                     <table role="presentation" style="width: 100%; margin: 32px 0;">
                       <tr>
                         <td style="text-align: center;">
-                          <a href="${this.configService.get<string>('CLIENT_URL')}reservations/received" 
+                          <a href="${this.configService.get<string>('CLIENT_URL')}/reservations/received" 
                              style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: all 0.2s;">
                             Gérer les Réservations →
                           </a>
@@ -278,7 +278,7 @@ export class MailService {
                     <table role="presentation" style="width: 100%; margin: 32px 0;">
                       <tr>
                         <td style="text-align: center;">
-                          <ahref="${this.configService.get<string>('CLIENT_URL')}reservations/made" 
+                          <ahref="${this.configService.get<string>('CLIENT_URL')}/reservations/made" 
                              style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
                             Suivre Ma Réservation →
                           </ahref=>
@@ -436,7 +436,7 @@ export class MailService {
                     <table role="presentation" style="width: 100%; margin: 32px 0;">
                       <tr>
                         <td style="text-align: center;">
-                          <a href="${this.configService.get<string>('CLIENT_URL')}reservations/made" 
+                          <a href="${this.configService.get<string>('CLIENT_URL')}/reservations/made" 
                              style="display: inline-block; background-color: ${color}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px ${color}44;">
                             Voir Mes Réservations →
                           </a>
@@ -573,7 +573,7 @@ export class MailService {
                     <table role="presentation" style="width: 100%; margin: 32px 0;">
                       <tr>
                         <td style="text-align: center;">
-                          <a href="${this.configService.get<string>('CLIENT_URL')}reservations/received" 
+                          <a href="${this.configService.get<string>('CLIENT_URL')}/reservations/received" 
                              style="display: inline-block; background-color: #6b7280; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);">
                             Voir Mes Réservations →
                           </a>

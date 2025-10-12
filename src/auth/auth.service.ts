@@ -74,14 +74,14 @@ export class AuthService {
       this.jwtService.signAsync(
         { id: userId, email },
         {
-          secret: this.configService.get<string>('JWT_AT_SECRET'),
+          secret: this.configService.get<string>('JWT_AT_SECRET'), // Remplacer par une variable d'environnement
           expiresIn: 60 * 15, // 15 minutes
         },
       ),
       this.jwtService.signAsync(
         { id: userId, email },
         {
-          secret: this.configService.get<string>('JWT_RT_SECRET'),
+          secret: this.configService.get<string>('JWT_RT_SECRET'), // Remplacer par une variable d'environnement
           expiresIn: 60 * 60 * 24 * 7, // 7 jours
         },
       ),

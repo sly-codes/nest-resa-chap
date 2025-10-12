@@ -1,10 +1,9 @@
-// src/auth/strategies/github.strategy.ts
-
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-github';
+import { Strategy } from 'passport-github'; // Correct import for GitHub
 import { AuthService } from '../auth.service';
+
 
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
@@ -12,8 +11,6 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {
-    // Cast l'objet d'options à 'any' pour contourner la validation stricte de TS
-    // qui ne comprend pas la gestion de 'passReqToCallback: false' par défaut.
     super({
       clientID: configService.get<string>('GITHUB_CLIENT_ID'),
       clientSecret: configService.get<string>('GITHUB_CLIENT_SECRET'),
@@ -37,11 +34,12 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     const email = primaryEmail || `${profile.username}@github.com`;
 
     const user = await this.authService.validateSocialUser({
+      // 🚨 Utiliser la méthode unifiée
       email: email,
       firstName: profile.displayName || profile.username,
       lastName: '',
-      provider: 'GITHUB',
-      providerId: profile.id,
+      provider: 'GITHUB', // 🚨 Définir le fournisseur
+      providerId: profile.id, // 🚨 L'ID GitHub est dans profile.id
     });
 
     done(null, user);

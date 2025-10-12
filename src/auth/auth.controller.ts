@@ -93,8 +93,8 @@ export class AuthController {
     const tokens = req.user; // Les tokens JWT
 
     // L'URL de votre route Angular pour gérer le callback
+    // const frontendCallbackUrl = 'http://localhost:4200/auth/callback';
     const frontendCallbackUrl = `${this.configService.get<string>('CLIENT_URL')}/auth/callback`;
-
     // res.redirect est la méthode Express correcte
     res.redirect(
       `${frontendCallbackUrl}?at=${tokens.access_token}&rt=${tokens.refresh_token}`,
@@ -120,7 +120,7 @@ export class AuthController {
   ): Promise<void> {
     const tokens = req.user; // Les tokens JWT générés par votre service
 
-    // L'URL de votre route Angular pour gérer le callback
+    // 🚨 IMPORTANT : Le path Angular doit correspondre au nouveau callback 🚨
     const frontendCallbackUrl = `${this.configService.get<string>('CLIENT_URL')}/auth/callback`;
 
     // Redirection vers le frontend
