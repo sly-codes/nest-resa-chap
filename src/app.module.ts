@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config'; // ⬅️ NOUVEL IMPORT
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { MailModule } from './mail/mail.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { ResourceModule } from './resource/resource.module';
-import { ConfigModule } from '@nestjs/config'; // ⬅️ NOUVEL IMPORT
 import { UserModule } from './users/user.module';
-import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
