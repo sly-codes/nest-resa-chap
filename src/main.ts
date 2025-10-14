@@ -1,8 +1,19 @@
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ConfigService } from '@nestjs/config';
+
+// 💡 Fonction utilitaire pour formater l'utilisation de la mémoire
+function formatMemoryUsage(data: NodeJS.MemoryUsage) {
+  const format = (bytes: number) => (bytes / 1024 / 1024).toFixed(2) + ' MB';
+
+  return `
+    RSS (Total alloué): ${format(data.rss)}
+    HEAP TOTAL (Taille de la pile): ${format(data.heapTotal)}
+    HEAP UTILISÉ (Utilisé par JS): ${format(data.heapUsed)}
+  `;
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -41,6 +52,11 @@ async function bootstrap() {
 
   await app.listen(port, () => {
     console.log(`Application démarrée SUR http://localhost:${port}`);
+
+    // 🚨 JOURNALISATION DE LA MÉMOIRE 🚨
+    console.log('--- Utilisation de la mémoire après démarrage ---');
+    console.log(formatMemoryUsage(process.memoryUsage()));
+    console.log('---------------------------------------------');
   });
 }
 bootstrap();
