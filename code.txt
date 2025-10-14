@@ -1,5 +1,1 @@
-super le backend fonctionne bien j'ai fais le teste postman et il me retour bien le json des jwt 
-
-il reste a implementer le frontend proprement 
-
-je te passe les fichier code de mon login et tu vas integrer cela proprement
+ok c'est cool
