@@ -38,7 +38,6 @@ export class ResourceController {
   @ApiOperation({
     summary: 'PUBLIC : Lister toutes les ressources avec filtres',
   })
-  // ✅ Documentez les paramètres de requête pour Swagger
   @ApiQuery({
     name: 'search',
     required: false,
@@ -51,7 +50,6 @@ export class ResourceController {
     description: 'Filtre par type de ressource',
   })
   getAll(@Query() filters: GetResourcesDto) {
-    // ✅ Utilisez @Query() pour capturer les filtres
     return this.resourceService.getAllResources(filters);
   }
 
@@ -64,9 +62,26 @@ export class ResourceController {
   @ApiBearerAuth()
   @Get('mine') // -> /resources/mine
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'PROTÉGÉ : Lister mes propres ressources' })
-  getMyResources(@CurrentUser('id') ownerId: string) {
-    return this.resourceService.getMyResources(ownerId);
+  @ApiOperation({
+    summary: 'PROTÉGÉ : Lister mes propres ressources (avec filtres)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Terme de recherche dans le nom/description',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: ['ROOM', 'EQUIPMENT'],
+    description: 'Filtre par type de ressource',
+  })
+  getMyResources(
+    @CurrentUser('id') ownerId: string,
+    @Query() filters: GetResourcesDto, // 🚨 AJOUT DES FILTRES
+  ) {
+    // 🚨 APPEL DU SERVICE MIS À JOUR AVEC LES FILTRES
+    return this.resourceService.getMyResources(ownerId, filters);
   }
 
   // 2. ROUTE DYNAMIQUE (GET BY ID) - Devient /resources/:id

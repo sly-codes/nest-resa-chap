@@ -43,6 +43,7 @@ export class ResourceService {
   async getResourceById(resourceId: string): Promise<Resource> {
     const resource = await this.prisma.resource.findUnique({
       where: { id: resourceId },
+      // Assurez-vous d'inclure les champs nécessaires, potentiellement l'owner
     });
 
     if (!resource) {
@@ -72,12 +73,11 @@ export class ResourceService {
 
     // 2. Filtrage par Recherche (recherche sur le nom OU la description)
     if (search) {
-      // Utilisation de l'opérateur OR pour rechercher dans plusieurs champs
       where.OR = [
         {
           name: {
             contains: search,
-            mode: 'insensitive', // Optionnel, si votre base de données le supporte (PostgreSQL)
+            mode: 'insensitive', // Optionnel, si votre base de données le supporte
           },
         },
         {
@@ -104,6 +104,9 @@ export class ResourceService {
         owner: {
           select: {
             email: true,
+            firstName: true,
+            lastName: true,
+            contactPhone: true,
           },
         },
       },
@@ -111,14 +114,50 @@ export class ResourceService {
   }
 
   /**
-   * Obtient les ressources du Locateur connecté
+   * 🚨 CORRECTION/AJOUT : Obtient les ressources du Locateur connecté AVEC FILTRES
    * @param ownerId L'ID du Locateur connecté
+   * @param filters Les filtres de recherche et de type
    * @returns Liste des ressources appartenant à ce Locateur
    */
-  async getMyResources(ownerId: string): Promise<Resource[]> {
+  async getMyResources(
+    ownerId: string,
+    filters: GetResourcesDto,
+  ): Promise<Resource[]> {
+    const { search, type } = filters;
+
+    // Construction de la clause WHERE de Prisma
+    const where: any = {
+      ownerId, // 🚨 FILTRE ESSENTIEL : Limité au propriétaire connecté
+    };
+
+    // 1. Filtrage par Type
+    if (type && ResourceTypes.includes(type)) {
+      where.type = type;
+    }
+
+    // 2. Filtrage par Recherche (recherche sur le nom OU la description)
+    if (search) {
+      // Note: L'opérateur AND implicite (ownerId AND (OR: [...])) est appliqué
+      where.OR = [
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
     return this.prisma.resource.findMany({
-      where: { ownerId },
+      where,
       orderBy: { createdAt: 'desc' },
+      // Pour une liste simple, les champs par défaut suffisent, ou ajoutez un `select`
     });
   }
 
