@@ -1,50 +1,91 @@
-import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// ✅ Import de Status pour la logique de statut
+import axios from 'axios';
+// Importez uniquement les types nécessaires
 import { Reservation, Resource, Status, User } from '@prisma/client';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+  // Déclarer la clé comme string stricte
+  private readonly apiKey: string;
+  // Adresse expéditrice unique vérifiée dans Brevo
+  private readonly mailFromEmail: string = 'ik3576898@gmail.com';
+  private readonly mailFromName: string = 'Resa Chap Notification';
 
-  constructor(
-    private mailerService: MailerService,
-    private readonly configService: ConfigService,
-  ) {
-    // 🚨 AJOUTEZ CECI TEMPORAIREMENT POUR LE DEBUG EN PROD
-    this.logger.log(`SMTP Host: ${this.configService.get('MAIL_HOST')}`);
-    this.logger.log(`SMTP Port: ${this.configService.get('MAIL_PORT')}`);
-    this.logger.log(`SMTP Secure: ${this.configService.get('MAIL_SECURE')}`);
-    this.logger.log(`SMTP User: ${this.configService.get('MAIL_USER')}`);
-    // NE PAS LOGGER LE MOT DE PASSE COMPLET, MAIS VÉRIFIER SA PRÉSENCE
-    this.logger.log(
-      `SMTP Pass Present: ${!!this.configService.get('MAIL_PASS')}`,
-    );
-    // 🚨 À RETIRER UNE FOIS LE PROBLÈME RÉSOLU
-  }
+  constructor(private readonly configService: ConfigService) {
+    // ⬇️ CORRECTION TS :
+    // Utiliser le ! pour affirmer à TypeScript que la valeur sera définie
+    // ou fournir une valeur par défaut.
 
+    // Pour une variable critique, il est préférable de vérifier et d'arrêter.
+    const key = this.configService.get<string>('BREVO_API_KEY');
 
-  
+    if (!key) {
+      this.logger.error(
+        "La variable BREVO_API_KEY est manquante ou indéfinie. L'envoi de mail ne fonctionnera pas.",
+      );
+      // Vous pouvez choisir d'arrêter l'application ici si vous le jugez critique :
+      // throw new Error('Configuration Mail critique manquante');
+      this.apiKey = ''; // Assignation d'une chaîne vide pour éviter le TS2322 si vous ne voulez pas planter l'app.
+    } else {
+      this.apiKey = key; // Maintenant, TypeScript sait que c'est une string
+    }
 
-  // Méthode générique d'envoi
+    // Log pour vérification rapide
+    this.logger.log(`Brevo API Key Present: ${!!this.apiKey}`);
+    this.logger.log(`Mail From: ${this.mailFromEmail}`);
+  } // Méthode générique d'envoi
+
   private async sendMailTemplate(
     to: string,
     subject: string,
     html: string,
     context: string,
   ): Promise<void> {
+    // Vérification de sécurité supplémentaire
+    if (!this.apiKey) {
+      this.logger.error(
+        `Tentative d'envoi d'email à ${to} sans clé API Brevo configurée.`,
+      );
+      return;
+    }
+
     try {
-      await this.mailerService.sendMail({
-        to,
-        subject,
-        html,
-      });
-      this.logger.log(`Email '${subject}' envoyé à ${to} (${context})`);
+      // Corps de la requête API Brevo V3
+      const payload = {
+        sender: {
+          email: this.mailFromEmail,
+          name: this.mailFromName,
+        },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: html,
+      };
+
+      const response = await axios.post(
+        'https://api.brevo.com/v3/smtp/email',
+        payload,
+        {
+          headers: {
+            'api-key': this.apiKey,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (response.status === 201 || response.status === 200) {
+        this.logger.log(`Email (API) '${subject}' envoyé à ${to} (${context})`);
+      } else {
+        this.logger.error(
+          `API Brevo a répondu avec statut ${response.status} pour ${to}:`,
+          response.data,
+        );
+      }
     } catch (error) {
       this.logger.error(
         `Échec de l'envoi de l'email à ${to} (${context}):`,
-        error.stack,
+        error.response?.data?.message || error.message || error.stack,
       );
     }
   }
