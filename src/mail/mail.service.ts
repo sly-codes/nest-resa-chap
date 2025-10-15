@@ -11,7 +11,21 @@ export class MailService {
   constructor(
     private mailerService: MailerService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    // 🚨 AJOUTEZ CECI TEMPORAIREMENT POUR LE DEBUG EN PROD
+    this.logger.log(`SMTP Host: ${this.configService.get('MAIL_HOST')}`);
+    this.logger.log(`SMTP Port: ${this.configService.get('MAIL_PORT')}`);
+    this.logger.log(`SMTP Secure: ${this.configService.get('MAIL_SECURE')}`);
+    this.logger.log(`SMTP User: ${this.configService.get('MAIL_USER')}`);
+    // NE PAS LOGGER LE MOT DE PASSE COMPLET, MAIS VÉRIFIER SA PRÉSENCE
+    this.logger.log(
+      `SMTP Pass Present: ${!!this.configService.get('MAIL_PASS')}`,
+    );
+    // 🚨 À RETIRER UNE FOIS LE PROBLÈME RÉSOLU
+  }
+
+
+  
 
   // Méthode générique d'envoi
   private async sendMailTemplate(
