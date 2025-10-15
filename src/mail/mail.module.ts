@@ -1,7 +1,7 @@
 import { MailerModule } from '@nestjs-modules/mailer';
 import { Global, Module } from '@nestjs/common';
-import { MailService } from './mail.service';
 import { ConfigService } from '@nestjs/config'; // Pour charger les variables d'environnement
+import { MailService } from './mail.service';
 
 // Le module est Global pour être injecté partout
 @Global()
@@ -23,7 +23,7 @@ import { ConfigService } from '@nestjs/config'; // Pour charger les variables d'
           },
         },
         defaults: {
-          from: '"Resa Chap Notification" <no-reply@sly.codes>',
+          from: '"Resa Chap Notification" <ik3576898@gmail.com>',
         },
       }),
       inject: [ConfigService],
