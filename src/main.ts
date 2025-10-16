@@ -20,7 +20,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: ['http://localhost:4200', 'https://ng-resa-chap.vercel.app'],
+    origin: ['http://localhost:4200', 'https://resachap.sly.codes'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
     credentials: true, // important pour les cookies ou headers auth
