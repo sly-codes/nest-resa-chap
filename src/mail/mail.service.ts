@@ -91,6 +91,173 @@ export class MailService {
   }
 
   // ----------------------------------------------------
+  // 2. Notification au nouvel Utilisateur : Bienvenue
+  // ----------------------------------------------------
+
+  /**
+   * Envoie un e-mail de bienvenue après une nouvelle inscription.
+   * @param user L'objet User qui vient d'être créé.
+   */
+  async sendWelcomeMail(user: User) {
+    const firstName = user.firstName || user.email.split('@')[0];
+    const subject = `🎉 Bienvenue chez ResaChap, ${firstName} !`;
+    const html = `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f8f9fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+      <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 40px 20px;">
+            <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background: linear-gradient(135deg, #00add8 0%, #0099bf 100%); padding: 40px; text-align: center;">
+                  <div style="width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                    <span style="font-size: 32px;">🎉</span>
+                  </div>
+                  <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+                    Bienvenue sur ResaChap !
+                  </h1>
+                  <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">
+                    Votre compte a été créé avec succès
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Body -->
+              <tr>
+                <td style="padding: 40px;">
+                  <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.6;">
+                    Bonjour <strong style="color: #00add8;">${firstName}</strong>,
+                  </p>
+                  
+                  <p style="margin: 0 0 24px; color: #6b7280; font-size: 15px; line-height: 1.6;">
+                    Nous sommes ravis de vous accueillir dans la communauté <strong>ResaChap</strong>. 
+                    Votre plateforme de gestion de réservations est maintenant prête à être utilisée !
+                  </p>
+
+                  <!-- Feature Cards -->
+                  <div style="background: #f0fdfa; border-left: 4px solid #00add8; border-radius: 6px; padding: 20px; margin: 24px 0;">
+                    <h3 style="margin: 0 0 16px; color: #00add8; font-size: 16px; font-weight: 600;">
+                      🚀 Que pouvez-vous faire maintenant ?
+                    </h3>
+                    <ul style="color: #047857; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                      <li style="margin-bottom: 8px;"><strong>Explorer le catalogue</strong> : Découvrez toutes les ressources disponibles (salles, équipements, véhicules)</li>
+                      <li style="margin-bottom: 8px;"><strong>Réserver facilement</strong> : Soumettez vos demandes de réservation en quelques clics</li>
+                      <li style="margin-bottom: 8px;"><strong>Partager vos ressources</strong> : Mettez vos propres espaces et équipements à disposition</li>
+                      <li style="margin-bottom: 0;"><strong>Gérer en temps réel</strong> : Suivez toutes vos réservations depuis votre tableau de bord</li>
+                    </ul>
+                  </div>
+
+                  <!-- Quick Start Steps -->
+                  <div style="margin: 32px 0;">
+                    <h3 style="margin: 0 0 20px; color: #111827; font-size: 18px; font-weight: 600;">
+                      🎯 Pour bien démarrer :
+                    </h3>
+                    
+                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 12px;">
+                          <div style="display: flex; align-items: start; gap: 12px;">
+                            <span style="display: inline-block; width: 32px; height: 32px; background: #00add8; color: white; border-radius: 50%; text-align: center; line-height: 32px; font-weight: 700; font-size: 14px; flex-shrink: 0;">1</span>
+                            <div>
+                              <strong style="display: block; color: #111827; font-size: 14px; margin-bottom: 4px;">Complétez votre profil</strong>
+                              <span style="color: #6b7280; font-size: 13px;">Ajoutez vos informations personnelles pour faciliter les échanges</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr><td style="height: 12px;"></td></tr>
+                      <tr>
+                        <td style="padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 12px;">
+                          <div style="display: flex; align-items: start; gap: 12px;">
+                            <span style="display: inline-block; width: 32px; height: 32px; background: #00add8; color: white; border-radius: 50%; text-align: center; line-height: 32px; font-weight: 700; font-size: 14px; flex-shrink: 0;">2</span>
+                            <div>
+                              <strong style="display: block; color: #111827; font-size: 14px; margin-bottom: 4px;">Parcourez le catalogue</strong>
+                              <span style="color: #6b7280; font-size: 13px;">Découvrez les ressources disponibles et leurs disponibilités</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr><td style="height: 12px;"></td></tr>
+                      <tr>
+                        <td style="padding: 16px; background: #f9fafb; border-radius: 8px;">
+                          <div style="display: flex; align-items: start; gap: 12px;">
+                            <span style="display: inline-block; width: 32px; height: 32px; background: #00add8; color: white; border-radius: 50%; text-align: center; line-height: 32px; font-weight: 700; font-size: 14px; flex-shrink: 0;">3</span>
+                            <div>
+                              <strong style="display: block; color: #111827; font-size: 14px; margin-bottom: 4px;">Faites votre première réservation</strong>
+                              <span style="color: #6b7280; font-size: 13px;">Sélectionnez une ressource et soumettez votre demande</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <!-- CTA Button -->
+                  <table role="presentation" style="width: 100%; margin: 32px 0;">
+                    <tr>
+                      <td style="text-align: center;">
+                        <a href="${this.configService.get<string>('CLIENT_URL')}/dashboard" 
+                          style="display: inline-block; background-color: #00add8; color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(0, 173, 216, 0.3);">
+                          Accéder à mon Tableau de Bord →
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Help Section -->
+                  <div style="background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 6px; padding: 20px; margin: 32px 0 0;">
+                    <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 1.6;">
+                      <strong>💡 Besoin d'aide ?</strong><br>
+                      Notre équipe est là pour vous accompagner. N'hésitez pas à nous contacter si vous avez la moindre question.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f9fafb; padding: 32px 40px; border-top: 1px solid #e5e7eb;">
+                  <table role="presentation" style="width: 100%; margin-bottom: 16px;">
+                    <tr>
+                      <td style="text-align: center;">
+                        <div style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                          <span style="font-size: 24px;">📅</span>
+                          <strong style="color: #00add8; font-size: 18px;">ResaChap</strong>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin: 0 0 12px; color: #6b7280; font-size: 12px; text-align: center; line-height: 1.6;">
+                    Gestion intelligente de ressources partagées
+                  </p>
+                  <p style="margin: 0; color: #9ca3af; font-size: 11px; text-align: center;">
+                    Vous recevez cet email car vous venez de créer un compte sur ResaChap.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+    await this.sendMailTemplate(
+      user.email,
+      subject,
+      html,
+      'Utilisateur - Bienvenue',
+    );
+  }
+
+  // ----------------------------------------------------
   // 1. Notification au Locateur : Nouvelle demande reçue
   // ----------------------------------------------------
 
