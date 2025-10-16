@@ -11,7 +11,7 @@ export class MailService {
   private readonly apiKey: string;
   // Adresse expéditrice unique vérifiée dans Brevo
   private readonly mailFromEmail: string = 'ik3576898@gmail.com';
-  private readonly mailFromName: string = 'Resa Chap Notification';
+  private readonly mailFromName: string = 'ResaChap';
 
   constructor(private readonly configService: ConfigService) {
     // ⬇️ CORRECTION TS :
