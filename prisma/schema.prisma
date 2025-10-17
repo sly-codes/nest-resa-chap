@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,7 +6,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 
 // ----------------------------------------------------
 // ENUMERATIONS
@@ -20,7 +18,6 @@ enum Status {
   REJECTED
 }
 
-
 // ----------------------------------------------------
 // 1. User (Locateur ET Locataire)
 // ----------------------------------------------------
@@ -32,35 +29,37 @@ enum Provider {
 }
 
 model User {
-  id             String      @id @default(uuid())
-  email          String      @unique
-  username       String?     @unique
+  id             String  @id @default(uuid())
+  email          String  @unique
+  username       String? @unique
   contactPhone   String?
   firstName      String?
   lastName       String?
-  hashedPassword String?     // Rendre optionnel pour les utilisateurs sociaux
+  hashedPassword String? // Rendre optionnel pour les utilisateurs sociaux
   hashedRt       String?
-  isVerified     Boolean     @default(false)
-  
+  isVerified     Boolean @default(false)
+
+  // 💡 NOUVEAUX CHAMPS D'IMAGE 💡
+  profilePictureUrl String?
+  coverPictureUrl   String?
+
   // 🚨 CHAMPS POUR AUTH SOCIALE 🚨
-  provider       Provider    @default(LOCAL)
-  providerId     String?
+  provider   Provider @default(LOCAL)
+  providerId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation 1-N : Un utilisateur peut posséder plusieurs ressources
+  resources Resource[]
+
+  // Relation 1-N : Un utilisateur peut créer plusieurs réservations (Locataire)
+  reservationsMade Reservation[] @relation("LocataireReservations")
 
   // 🚨 INDEX UNIQUE COMPOSITE 🚨
   // Assure qu'un utilisateur n'est inscrit qu'une seule fois par plateforme
   @@unique([provider, providerId])
-
-
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  // Relation 1-N : Un utilisateur peut posséder plusieurs ressources
-  resources       Resource[]
-  
-  // Relation 1-N : Un utilisateur peut créer plusieurs réservations (Locataire)
-  reservationsMade Reservation[] @relation("LocataireReservations")
 }
-
 
 // ----------------------------------------------------
 // 2. Resource (La Salle ou le Matériel)
@@ -78,32 +77,32 @@ enum PriceUnit {
 }
 
 model Resource {
-  id                String    @id @default(uuid())
-  name              String
-  type              String    // Ex: "ROOM", "EQUIPMENT"
-  description       String?
-  
+  id          String  @id @default(uuid())
+  name        String
+  type        String // Ex: "ROOM", "EQUIPMENT"
+  description String?
+
   // 💡 NOUVEAU: Champs de Prix
-  price             Float     @default(0) // Prix de la ressource (peut être 0 si gratuit)
-  priceUnit         PriceUnit @default(HOUR) // Unité de tarification
+  price     Float     @default(0) // Prix de la ressource (peut être 0 si gratuit)
+  priceUnit PriceUnit @default(HOUR) // Unité de tarification
 
   // 💡 NOUVEAU: Champs de Localisation
-  country           String?
-  city              String?
-  address           String?
+  country String?
+  city    String?
+  address String?
 
   // 💡 NOUVEAU: Média
-  mainImage         String?   // URL publique de l'image principale (stockée sur S3, Cloudinary, etc.)
+  mainImage String? // URL publique de l'image principale (stockée sur S3, Cloudinary, etc.)
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relation N-1 : Une ressource appartient à un seul Locateur (ownerId est l'ID du User)
-  ownerId           String
-  owner             User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   // Relation 1-N : Une ressource peut avoir plusieurs réservations
-  reservations      Reservation[]
+  reservations Reservation[]
 }
 
 // ----------------------------------------------------
@@ -111,29 +110,25 @@ model Resource {
 // ----------------------------------------------------
 
 model Reservation {
-  id                  String      @id @default(uuid())
-  
-  // Relation N-1 : Le Locataire qui a fait la demande
-  locataireId         String      // NOUVEAU : ID de l'utilisateur qui réserve
-  locataire           User        @relation("LocataireReservations", fields: [locataireId], references: [id], onDelete: Restrict)
-  
-  // Plage horaire
-  dateDebut           DateTime
-  dateFin             DateTime
-  
-  status              Status      @default(PENDING) // Le nouveau statut 
+  id String @id @default(uuid())
 
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  // Relation N-1 : Le Locataire qui a fait la demande
+  locataireId String // NOUVEAU : ID de l'utilisateur qui réserve
+  locataire   User   @relation("LocataireReservations", fields: [locataireId], references: [id], onDelete: Restrict)
+
+  // Plage horaire
+  dateDebut DateTime
+  dateFin   DateTime
+
+  status Status @default(PENDING) // Le nouveau statut 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relation N-1 : La ressource liée
-  resourceId          String
-  resource            Resource    @relation(fields: [resourceId], references: [id], onDelete: Restrict)
-  
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
   // Notes facultatives du locataire
-  notes               String?
+  notes String?
 }
-
-
-
-

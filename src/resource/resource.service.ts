@@ -58,7 +58,16 @@ export class ResourceService {
   async getResourceById(resourceId: string): Promise<Resource> {
     const resource = await this.prisma.resource.findUnique({
       where: { id: resourceId },
-      include: { owner: { select: { email: true, firstName: true } } },
+      include: {
+        owner: {
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            contactPhone: true,
+          },
+        },
+      },
     });
 
     if (!resource) {
