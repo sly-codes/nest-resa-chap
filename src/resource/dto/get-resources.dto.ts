@@ -1,8 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsIn, MaxLength } from 'class-validator';
-
-// Définissez les types de ressource disponibles
-export const ResourceTypes = ['ROOM', 'EQUIPMENT'];
+import { ResourceTypes } from './resource-types.dto'; // 💡 IMPORT
 
 export class GetResourcesDto {
   @ApiProperty({
@@ -22,7 +20,16 @@ export class GetResourcesDto {
   })
   @IsOptional()
   @IsString()
-  // Valide que la valeur est bien un des types autorisés
   @IsIn(ResourceTypes)
   type?: 'ROOM' | 'EQUIPMENT';
+
+  // 💡 NOUVEAU: Filtre par Ville
+  @ApiProperty({
+    description: 'Filtre par ville.',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  city?: string;
 }

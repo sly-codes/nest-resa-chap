@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 // 💡 Fonction utilitaire pour formater l'utilisation de la mémoire
 function formatMemoryUsage(data: NodeJS.MemoryUsage) {
@@ -16,7 +18,8 @@ function formatMemoryUsage(data: NodeJS.MemoryUsage) {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // CORS
   app.enableCors({
@@ -45,6 +48,11 @@ async function bootstrap() {
 
   // 💡 Injecter le ConfigService depuis l'application
   const configService = app.get(ConfigService);
+
+  // 💡 EXPOSER LE DOSSIER D'UPLOAD COMME STATIQUE
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/', // Les images seront accessibles via http://localhost:3000/uploads/resources/xxx.jpg
+  });
 
   // 🚨 POINT CRITIQUE : Utiliser la variable d'environnement 'PORT'
   // Si Render ne fournit pas de PORT, utiliser un port par défaut (ex: 3000)

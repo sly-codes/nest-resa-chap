@@ -66,20 +66,44 @@ model User {
 // 2. Resource (La Salle ou le Matériel)
 // ----------------------------------------------------
 
+// ----------------------------------------------------
+// 2. Resource (La Salle ou le Matériel)
+// ----------------------------------------------------
+
+enum PriceUnit {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+}
+
 model Resource {
-  id              String      @id @default(uuid())
-  name            String
-  type            String      // Ex: "salle", "materiel"
-  description     String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                String    @id @default(uuid())
+  name              String
+  type              String    // Ex: "ROOM", "EQUIPMENT"
+  description       String?
+  
+  // 💡 NOUVEAU: Champs de Prix
+  price             Float     @default(0) // Prix de la ressource (peut être 0 si gratuit)
+  priceUnit         PriceUnit @default(HOUR) // Unité de tarification
+
+  // 💡 NOUVEAU: Champs de Localisation
+  country           String?
+  city              String?
+  address           String?
+
+  // 💡 NOUVEAU: Média
+  mainImage         String?   // URL publique de l'image principale (stockée sur S3, Cloudinary, etc.)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relation N-1 : Une ressource appartient à un seul Locateur (ownerId est l'ID du User)
-  ownerId         String
-  owner           User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId           String
+  owner             User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   // Relation 1-N : Une ressource peut avoir plusieurs réservations
-  reservations    Reservation[]
+  reservations      Reservation[]
 }
 
 // ----------------------------------------------------
