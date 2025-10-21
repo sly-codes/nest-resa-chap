@@ -9,6 +9,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { ResourceModule } from './resource/resource.module';
 import { UserModule } from './users/user.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UserModule } from './users/user.module';
     MailModule,
     UserModule,
     DashboardModule,
+    AdminModule
   ],
 
   controllers: [AppController],

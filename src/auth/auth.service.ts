@@ -1,109 +1,83 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { User } from '@prisma/client'; // Importez l'objet User de Prisma
 import * as argon from 'argon2';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthDto } from './dto';
-import { SocialUserDto, Tokens } from './types';
+import { JwtPayload, SocialUserDto, Tokens, UserRole } from './types'; // Importez le type UserRole
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  private readonly logger = new Logger(AuthService.name); // L'opérateur '!' indique que cette propriété sera initialisée,
+  // nous la chargeons dans le constructeur en forçant la valeur.
+  private readonly superAdminId: string;
 
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
-  ) {}
-
+  ) {
+    // 🚨 CORRECTION TS2322 : Utilisation d'un cast strict ou d'une vérification
+    // Pour les variables d'environnement critiques, on suppose qu'elle est présente
+    // ou que l'application plantera au démarrage si elle ne l'est pas.
+    const adminId = this.configService.get<string>('SUPER_ADMIN_ID');
+    if (!adminId) {
+      throw new Error(
+        "La variable d'environnement 'SUPER_ADMIN_ID' est manquante. Le système de rôles ne peut pas fonctionner.",
+      );
+    }
+    this.superAdminId = adminId;
+  } // ----------------------------------------------------------------------
+  // 💡 FONCTION CRUCIALE : DÉTERMINATION DU RÔLE
   // ----------------------------------------------------------------------
-  // LOGIQUE DE CONNEXION SOCIALE
-  // ----------------------------------------------------------------------
-
   /**
-   * Valide/Crée l'utilisateur social et génère des tokens.
+   * Détermine le rôle de l'utilisateur basé sur son ID et ses données (si nécessaire).
+   * @param user L'objet utilisateur (au moins l'ID est requis).
+   * @returns Le rôle ('SUPER_ADMIN', 'LOCATEUR', ou 'LOCATAIRE').
    */
-  async validateSocialUser(userDto: SocialUserDto): Promise<Tokens> {
-    // 1. Chercher l'utilisateur par providerId ET provider
-    let user = await this.prisma.user.findUnique({
-      where: {
-        provider_providerId: {
-          provider: userDto.provider,
-          providerId: userDto.providerId,
-        },
-      },
-    });
 
-    const isNewUser = !user; // Flag pour l'email de bienvenue
+  private determineUserRole(user: Pick<User, 'id'>): UserRole {
+    // 1. Vérification du rôle SUPER_ADMIN (Liste blanche/ID connu)
+    if (user.id === this.superAdminId) {
+      return 'SUPER_ADMIN';
+    } // 🚨 LOGIQUE ACTUELLE : Tout le monde est LOCATAIRE sauf le SUPER_ADMIN.
+    // Cette logique est simple et sécurisée pour le lancement.
 
-    // 2. Création si l'utilisateur n'existe pas
-    if (isNewUser) {
-      user = await this.prisma.user.create({
-        data: {
-          email: userDto.email,
-          firstName: userDto.firstName,
-          lastName: userDto.lastName,
-          provider: userDto.provider,
-          providerId: userDto.providerId,
-          isVerified: true,
-        },
-      });
-
-      // Envoi de l'e-mail de bienvenue après la création
-      try {
-        await this.mailService.sendWelcomeMail(user);
-      } catch (error) {
-        this.logger.error(
-          `Échec de l'envoi de l'email de bienvenue (Social) pour ${user.email}`,
-          error.stack,
-        );
-      }
-    }
-
-    // 🚨 CORRECTION TS18047: L'utilisateur ne peut plus être null ici.
-    // Si la recherche initiale (l. 49) a réussi, 'user' est non-null.
-    // Si la recherche a échoué (l. 57), 'user' a été créé et est non-null.
-    // Néanmoins, pour la rigueur et si le findUnique peut retourner null, on s'assure qu'il est défini.
-    if (!user) {
-      this.logger.error(
-        'Erreur critique: Utilisateur social introuvable et non créé.',
-      );
-      throw new ForbiddenException(
-        "Erreur d'authentification. Veuillez réessayer.",
-      );
-    }
-
-    // 3. Générer les tokens AT et RT pour l'utilisateur
-    // L'erreur disparaît car TS sait que 'user' est défini ici.
-    const tokens = await this.getTokens(user.id, user.email);
-
-    // 4. Mettre à jour le hash du RT
-    await this.updateRtHash(user.id, tokens.refresh_token);
-
-    return tokens;
-  }
-
-  // ----------------------------------------------------------------------
+    return 'LOCATAIRE';
+  } // ----------------------------------------------------------------------
   // FONCTIONS UTILITAIRES DE SÉCURITÉ
   // ----------------------------------------------------------------------
 
   hashData(data: string) {
     return argon.hash(data);
-  }
+  } /**
+   * Génère les tokens AT et RT, en incluant le rôle dans le payload.
+   */
 
   async getTokens(userId: string, email: string): Promise<Tokens> {
+    const user = { id: userId }; // Minimum requis pour determineUserRole
+    const role = this.determineUserRole(user); // 💡 Détermination du rôle
+
+    const payload: JwtPayload = {
+      // 💡 Le payload est typé avec 'role'
+      id: userId,
+      email,
+      role, // 💡 INJECTION DU RÔLE DANS LE PAYLOAD
+    };
+
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(
-        { id: userId, email },
+        payload, // Utilisation du payload enrichi
         {
           secret: this.configService.get<string>('JWT_AT_SECRET'),
           expiresIn: 60 * 60 * 24 * 1, // 1 jour
         },
       ),
       this.jwtService.signAsync(
-        { id: userId, email },
+        payload, // Utilisation du payload enrichi
         {
           secret: this.configService.get<string>('JWT_RT_SECRET'),
           expiresIn: 60 * 60 * 24 * 7, // 7 jours
@@ -123,9 +97,58 @@ export class AuthService {
       where: { id: userId },
       data: { hashedRt: hash },
     });
-  }
+  } // ----------------------------------------------------------------------
+  // LOGIQUE DE CONNEXION SOCIALE
+  // ----------------------------------------------------------------------
 
-  // ----------------------------------------------------
+  async validateSocialUser(userDto: SocialUserDto): Promise<Tokens> {
+    let user = await this.prisma.user.findUnique({
+      where: {
+        provider_providerId: {
+          provider: userDto.provider,
+          providerId: userDto.providerId,
+        },
+      },
+    });
+
+    const isNewUser = !user;
+
+    if (isNewUser) {
+      user = await this.prisma.user.create({
+        data: {
+          email: userDto.email,
+          firstName: userDto.firstName,
+          lastName: userDto.lastName,
+          provider: userDto.provider,
+          providerId: userDto.providerId,
+          isVerified: true,
+        },
+      });
+
+      try {
+        await this.mailService.sendWelcomeMail(user);
+      } catch (error) {
+        this.logger.error(
+          `Échec de l'envoi de l'email de bienvenue (Social) pour ${user.email}`,
+          error.stack,
+        );
+      }
+    }
+
+    if (!user) {
+      this.logger.error(
+        'Erreur critique: Utilisateur social introuvable et non créé.',
+      );
+      throw new ForbiddenException(
+        "Erreur d'authentification. Veuillez réessayer.",
+      );
+    }
+
+    const tokens = await this.getTokens(user.id, user.email);
+    await this.updateRtHash(user.id, tokens.refresh_token);
+
+    return tokens;
+  } // ----------------------------------------------------
   // LOGIQUE AUTHENTIFICATION LOCALE
   // ----------------------------------------------------
 
@@ -143,7 +166,6 @@ export class AuthService {
       const tokens = await this.getTokens(newUser.id, newUser.email);
       await this.updateRtHash(newUser.id, tokens.refresh_token);
 
-      // Envoi de l'e-mail de bienvenue après la création
       try {
         await this.mailService.sendWelcomeMail(newUser);
         console.log('email envoyé avec success', newUser);

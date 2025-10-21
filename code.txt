@@ -1,1 +1,188 @@
-ok c'est cool
+strategy
+import { Injectable } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { JwtPayload } from '../types';
+import { ConfigService } from '@nestjs/config';
+
+@Injectable()
+export class AtStrategy extends PassportStrategy(Strategy, 'jwt') {
+  constructor( private readonly configService: ConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      secretOrKey: configService.get<string>('JWT_AT_SECRET'),
+    } as any);
+  }
+
+  validate(payload: JwtPayload) {
+    return payload;
+  }
+}
+
+
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Request } from 'express';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { JwtPayload, JwtPayloadWithRt } from '../types';
+import { ConfigService } from '@nestjs/config';
+
+@Injectable()
+export class RtStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+  constructor(private readonly configService: ConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      secretOrKey: configService.get<string>('JWT_RT_SECRET'),
+      passReqToCallback: true,
+    } as any);
+  }
+
+  validate(req: Request, payload: JwtPayload): JwtPayloadWithRt {
+    const refreshToken = req
+      ?.get('authorization')
+      ?.replace('Bearer', '')
+      .trim();
+
+    if (!refreshToken) throw new ForbiddenException('Refresh token malformed');
+
+    return {
+      ...payload,
+      refreshToken,
+    };
+  }
+}
+
+
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { Strategy } from 'passport-github'; // Correct import for GitHub
+import { AuthService } from '../auth.service';
+
+
+@Injectable()
+export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {
+    super({
+      clientID: configService.get<string>('GITHUB_CLIENT_ID'),
+      clientSecret: configService.get<string>('GITHUB_CLIENT_SECRET'),
+      callbackURL: configService.get<string>('GITHUB_CALLBACK_URL'),
+      scope: ['user:email', 'read:user'],
+    } as any); // <-- AJOUT CRUCIAL ICI
+  }
+
+  /**
+   * Méthode appelée après l'authentification GitHub.
+   */
+  async validate(
+    accessToken: string,
+    refreshToken: string,
+    profile: any,
+    done: (err: any, user: any) => void,
+  ): Promise<any> {
+    const primaryEmail = profile.emails
+      ? profile.emails.find((email) => email.primary)?.value
+      : profile._json.email;
+    const email = primaryEmail || `${profile.username}@github.com`;
+
+    const user = await this.authService.validateSocialUser({
+      // 🚨 Utiliser la méthode unifiée
+      email: email,
+      firstName: profile.displayName || profile.username,
+      lastName: '',
+      provider: 'GITHUB', // 🚨 Définir le fournisseur
+      providerId: profile.id, // 🚨 L'ID GitHub est dans profile.id
+    });
+
+    done(null, user);
+  }
+}
+
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { AuthService } from '../auth.service'; // Nécessaire pour la logique métier
+
+
+// Le nom de la stratégie est 'google'
+@Injectable()
+export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {
+    // Configuration de la stratégie Google OAuth
+    super({
+      clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
+      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
+      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL'),
+      scope: ['email', 'profile'],
+      prompt: 'select_account consent',
+    } as any);
+  }
+
+  /**
+   * La méthode `validate` est appelée après que Google a authentifié l'utilisateur.
+   * Elle reçoit les infos de Google et doit retourner un objet utilisateur.
+   */
+  async validate(
+    accessToken: string,
+    refreshToken: string,
+    profile: any,
+    done: VerifyCallback,
+  ): Promise<any> {
+    const { name, emails, id } = profile; // 🚨 Récupérer l'ID Google
+    const email = emails[0].value;
+
+    const user = await this.authService.validateSocialUser({
+      // 🚨 Utiliser la méthode unifiée
+      email: email,
+      firstName: name.givenName,
+      lastName: name.familyName,
+      provider: 'GOOGLE', // 🚨 Définir le fournisseur
+      providerId: id, // 🚨 Définir l'ID du fournisseur
+    });
+
+    done(null, user);
+  }
+}
+
+
+type 
+import { JwtPayload } from './jwt-payload.type';
+
+// Le payload du Refresh Token (contient le token brut en plus)
+export type JwtPayloadWithRt = JwtPayload & {
+  refreshToken: string;
+};
+
+
+// Le payload de base inclus dans les deux tokens (AT et RT)
+export type JwtPayload = {
+  id: string; // L'ID de l'utilisateur (Locateur)
+  email: string;
+};
+
+
+// ... autres types
+
+export interface SocialUserDto {
+  email: string;
+  firstName: string;
+  lastName?: string;
+  provider: 'GOOGLE' | 'GITHUB';
+  providerId: string;
+}
+
+/**
+ * Type représentant les jetons (Tokens) renvoyés après connexion/rafraîchissement.
+ */
+export type Tokens = {
+  access_token: string;
+  refresh_token: string;
+};
+
