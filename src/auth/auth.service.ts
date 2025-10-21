@@ -160,6 +160,7 @@ export class AuthService {
         data: {
           email: dto.email,
           hashedPassword,
+          isVerified: true,
         },
       });
 
