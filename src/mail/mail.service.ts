@@ -43,7 +43,7 @@ export class MailService {
     html: string,
     context: string,
   ): Promise<void> {
-    // Vérification de sécurité supplémentaire
+   
     if (!this.apiKey) {
       this.logger.error(
         `Tentative d'envoi d'email à ${to} sans clé API Brevo configurée.`,
