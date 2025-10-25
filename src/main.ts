@@ -46,12 +46,8 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, documentFactory);
 
-  // 💡 Injecter le ConfigService depuis l'application
   const configService = app.get(ConfigService);
 
-
-  // 🚨 POINT CRITIQUE : Utiliser la variable d'environnement 'PORT'
-  // Si Render ne fournit pas de PORT, utiliser un port par défaut (ex: 3000)
   const port = configService.get('PORT') || 3000;
 
   await app.listen(port, () => {
