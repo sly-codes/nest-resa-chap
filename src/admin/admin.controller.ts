@@ -6,9 +6,9 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AdminService, DashboardMetrics } from './admin.service';
-import { AtGuard } from 'src/common/guards'; // Votre Auth Guard (AT)
-import { RolesGuard } from '../common/guards/roles.guard'; // 💡 Votre nouveau Roles Guard
-import { Roles } from 'src/common/decorators'; // 💡 Votre nouveau Décorateur
+import { AtGuard } from 'src/common/guards';
+import { RolesGuard } from '../common/guards/roles.guard'; 
+import { Roles } from 'src/common/decorators';
 
 @UseGuards(AtGuard, RolesGuard) // 1. Vérification JWT, 2. Vérification Rôle
 @Roles('SUPER_ADMIN') // Seuls les Super Admins peuvent accéder à toutes les routes de ce contrôleur
