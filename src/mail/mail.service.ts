@@ -228,7 +228,6 @@ export class MailService {
                     <tr>
                       <td style="text-align: center;">
                         <div style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                          <span style="font-size: 24px;">📅</span>
                           <strong style="color: #00add8; font-size: 18px;">ResaChap</strong>
                         </div>
                       </td>
