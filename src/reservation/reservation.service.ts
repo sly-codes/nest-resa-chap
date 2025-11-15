@@ -363,4 +363,64 @@ export class ReservationService {
 
     return updatedReservation;
   }
+
+  // ----------------------------------------------------
+  // DÉTAILS DE RÉSERVATION (Pour affichage complet)
+  // ----------------------------------------------------
+
+  /**
+   * Récupère les détails complets d'une réservation par ID
+   * avec toutes les informations de la ressource et des utilisateurs
+   */
+  async getReservationById(reservationId: string, userId: string) {
+    const reservation = await this.prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: {
+        resource: {
+          include: {
+            owner: {
+              select: {
+                id: true,
+                email: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                contactPhone: true,
+                profilePictureUrl: true,
+              },
+            },
+          },
+        },
+        locataire: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            contactPhone: true,
+            profilePictureUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!reservation) {
+      throw new NotFoundException(
+        `Réservation avec ID ${reservationId} introuvable.`,
+      );
+    }
+
+    // Vérification des autorisations : seul le locataire ou le propriétaire de la ressource peut voir les détails
+    if (
+      reservation.locataireId !== userId &&
+      reservation.resource.ownerId !== userId
+    ) {
+      throw new ForbiddenException(
+        "Vous n'êtes pas autorisé à voir les détails de cette réservation.",
+      );
+    }
+
+    return reservation;
+  }
 }

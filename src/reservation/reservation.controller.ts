@@ -1,29 +1,29 @@
 import {
-  Controller,
-  Post,
   Body,
-  UseGuards,
-  Get,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  HttpStatus,
+  Get,
   HttpCode,
+  HttpStatus,
+  Param,
   ParseUUIDPipe,
+  Patch,
+  Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ReservationService } from './reservation.service';
-import { CreateReservationDto } from './dto/create-reservation.dto';
-import { UpdateStatusDto } from './dto/update-status.dto';
-import { AtGuard } from 'src/common/guards';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { AtGuard } from 'src/common/guards';
 import { PaginationQueryDto } from './dto';
+import { CreateReservationDto } from './dto/create-reservation.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { ReservationService } from './reservation.service';
 
 @ApiTags('Reservations (Locataire & Locateur)')
 @Controller('reservations')
@@ -103,7 +103,30 @@ export class ReservationController {
     return this.reservationService.getReservationsReceived(locateurId, query);
   }
 
-  
+  // ----------------------------------------------------
+  // DÉTAILS DE RÉSERVATION
+  // ----------------------------------------------------
+
+  @Get(':id')
+  @ApiOperation({
+    summary: "Récupérer les détails complets d'une réservation par ID",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Détails de la réservation récupérés.',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description:
+      "Accès refusé - vous n'êtes pas autorisé à voir cette réservation.",
+  })
+  getReservationById(
+    @Param('id', ParseUUIDPipe) reservationId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.reservationService.getReservationById(reservationId, userId);
+  }
+
   @Patch(':id/status')
   @ApiOperation({
     summary: "Mettre à jour le statut d'une réservation reçue (Locateur)",
